@@ -12,7 +12,7 @@ def main():
       # Future instruction set extensions
       if extension in ['CLDEMOTE', 'MOVDIR', 'PCONFIG', 'WAITPKG', 'WBNOINVD']:
          continue
-            
+      
       asm = instrNode.attrib['asm']
       
       first = True
@@ -42,8 +42,7 @@ def main():
                if instrNode.attrib.get('zeroing', '') == '1':
                   asm += '{z}'
          elif operandNode.attrib['type'] == 'mem' or operandNode.attrib['type'] == 'agen':
-            memoryPrefix = operandNode.attrib.get('memory-prefix', '')
-            
+            memoryPrefix = operandNode.attrib.get('memory-prefix', '')            
             if memoryPrefix:
                asm += memoryPrefix + ' '
                
