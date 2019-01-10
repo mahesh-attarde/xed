@@ -1,64 +1,35 @@
-# Intel X86 Encoder Decoder  (Intel XED)
+# XED to XML Converter
 
-## Doxygen API manual and source build manual:
+The goal of this project is to create a machine-readable XML representation of the x86 instruction set that makes it easy to automatically generate assembler code for all instruction variants.
+A particular use case for this is the automatic generation of microbenchmarks for measuring the performance of x86 instructions (see [uops.info](http://uops.info/)).
 
-https://intelxed.github.io
+We currently only consider instruction variants that can be used in 64-bit mode and that use an effective address size of 64 bits.
+The assembler code is intended to be used with the GNU assembler, using the [".intel_syntax noprefix" directive](http://www.sourceware.org/binutils/docs-2.12/as.info/i386-Syntax.html). 
+However, it should be relatively straight-forward to adapt it to other assemblers.
 
-## Bugs:
+## "Instruction variants" vs. XED iforms
 
-### Intel internal employee users/developers:
+We consider a definition of "instruction variant" that is more fine-grained than XED's iforms. 
+For example, we consider versions of an instruction that use 32-bit and 64-bit general-purpose registers (i.e., that use a different effective operand size) to be different "instruction variants"; however, both versions have the same XED iform.
 
-http://mjc.intel.com
-       
-### Everyone else:
+The combination of an *XED iform* and the *eosz*, *norex*, *rep*, *zeroing*, *mask*, *bcast*, and *sae* attributes uniquely identifies an "instruction variant".
 
-https://github.com/intelxed/xed/issues/new
-       
 
-## Abbreviated building instructions:
+## Generating assembler code for all instruction variants
+
+xmlToAssembler.py is a short Python script that shows how the instructions.xml file can used to generate assembler code for all instruction variants.
+
+## (Re)generating instructions.xml
 
 ```shell
-git clone https://github.com/intelxed/xed.git xed
+git clone https://github.com/andreas-abel/XED-to-XML.git XED-to-XML
 git clone https://github.com/intelxed/mbuild.git mbuild
-cd xed
+cd XED-to-XML
 ./mfile.py
 ```
 
-then get your libxed.a from the obj directory.
-Add " --shared" if you want a shared object build.
-Add " install" if you want the headers & libraries put in to a kit in the "kits" directory.
-Add "C:/python27/python " before "./mfile.py" if on windows.
+This would, for example, be necessary if the configuration files in datafiles/ were modified/updated.
 
-## How to build the examples:
+## uops.info
 
-There are two options:
-
-1) When building libxed you can also build the examples, from the main directory (above examples):
-
-```shell
-./mfile.py examples
-```
-
-and the compiled examples will be in obj/examples.
-    
-2) Build a compiled "kit" and the build the examples from within the kit:
-
-```shell
-./mfile.py install
-cd kits
-cd <whatever the kit is called>
-cd examples
-./mfile.py
-```
-    
-
-See source build documentation for more information.
-
-## Binary size?
-
-Concerned about large libraries or binaries? There are several options:
- 
-1. Consider building with "--limit-strings"
-2. Strip the binaries
-3. Consider doing an encoder-only or decoder-only build if you only need one or the other.
-
+On [uops.info](http://uops.info/), you can find a version of the instructions.xml file that is extended with latency, throughput, and port usage data for all generations of Intel's Core architecture (i.e., from Nehalem to Coffee Lake).

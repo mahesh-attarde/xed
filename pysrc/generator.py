@@ -1,6 +1,13 @@
 #!/usr/bin/env python
 # -*- python -*-
+
 #BEGIN_LEGAL
+#
+#Copyright (c) 2018 Andreas Abel
+#
+#This file has been modified by Andreas Abel.
+#
+#Original copyright notice:
 #
 #Copyright (c) 2018 Intel Corporation
 #
@@ -65,6 +72,662 @@ import types
 import glob
 import re
 import optparse
+
+############################################################################
+## XED-to-XML code
+############################################################################
+from xml.etree.ElementTree import Element, SubElement, Comment, tostring
+from xml.etree import ElementTree
+from xml.dom import minidom
+
+# modified from datafiles/avx512f/avx512-strings.txt
+BCASTSTR = { 
+    0 : '',
+    1 : '{1to16}',
+    2 : '{4to16}', 
+    3 : '{1to8}',
+    4 : '{4to8}',
+    5 : '{1to8}',
+    6 : '{4to8}',
+    7 : '{2to16}',
+    8 : '{2to8}',
+    9 : '{8to16}',
+    10 : '{1to4}',
+    11 : '{1to2}',
+    12 : '{2to4}',
+    13 : '{1to4}',
+    14 : '{1to8}',
+    15 : '{1to16}',
+    16 : '{1to32}',
+    17 : '{1to16}',
+    18 : '{1to32}',
+    19 : '{1to64}',
+    20 : '{2to4}',
+    21 : '{2to8}',
+    22 : '{1to2}',
+    23 : '{1to2}',
+    24 : '{1to4}',
+    25 : '{1to8}',
+    26 : '{1to2}',
+    27 : '{1to4}',
+}
+
+
+def isInconsistent(bit, token, value):
+   if bit.is_operand_decider and bit.token == token:
+      if bit.test == 'eq':
+         if bit.requirement != value:
+            return True
+      if bit.test == 'ne':
+         if bit.requirement == value:
+            return True
+   return False
+
+
+def getAllRegisterNamesForOperand(operand, agi, mask, EOSZ=None, noRex=None):
+   if operand.type == 'nt_lookup_fn':
+      o = operand.lookupfn_name 
+
+      returnList = []
+      for rule in agi.generator_dict[o].parser_output.instructions:         
+         admissibleRule = True
+         for b in rule.ipattern.bits:
+            if isInconsistent(b, 'MODE', 2) or isInconsistent(b, 'EASZ', 3):
+               admissibleRule = False
+               break
+            if isInconsistent(b, 'EOSZ', EOSZ):
+               admissibleRule = False
+               break
+            if noRex is not None:
+               if noRex:
+                  if isInconsistent(b, 'REX', 0) or isInconsistent(b, 'REXR', 0) or isInconsistent(b, 'REXB', 0):
+                     admissibleRule = False
+                     break
+               else:
+                  if isInconsistent(b, 'REX', 1):
+                     admissibleRule = False
+                     break
+         if not admissibleRule: continue
+
+         returnList.extend(getAllRegisterNamesForOperand(rule.operands[0], agi, mask, EOSZ, noRex))
+      return returnList
+   elif operand.type == 'reg':
+      o = operand.bits.upper()
+      o = re.sub('XED_REG_','',o)
+      o = re.sub('MMX','MM',o)
+      if o.startswith('ST') and not o.startswith('STA'):
+         o = re.sub('ST','ST(',o) + ')'
+      if o == 'ERROR':
+         return []
+      if mask and o == 'K0':
+         return []
+      if 'STACKPUSH' in o or 'STACKPOP' in o:
+         o = 'RSP'
+      return [o]
+
+
+def hasOperandSensitiveToEOSZ(operands, agi, widths_list_dict):
+   for operand in operands:
+      widthName = None
+      if operand.oc2:
+         widthName = operand.oc2.upper()
+      elif operand.lookupfn_name not in ['rFLAGS', 'rIP'] and operand.lookupfn_name in agi.extra_widths_nt:
+         widthName = agi.extra_widths_nt[operand.lookupfn_name].upper()
+      if widthName and widthName not in ['ASZ', 'SSZ'] and len(set(widths_list_dict[widthName])) > 1:
+         return True
+   return False  
+
+
+def findPossibleValuesForToken(bits, token, externalRequirements, agi): 
+   state_space = {}
+   
+   retSet = set()
+   for b in bits:
+      localRetSet = set()
+      if b.is_operand_decider():       
+         if b.test == 'eq':
+            if b.token in externalRequirements and b.requirement not in externalRequirements[b.token]:
+               return None
+            else:
+               state_space[b.token] = [b.requirement]
+         else:
+            if b.token not in state_space:
+               if b.token not in agi.common.state_space:
+                  continue
+               state_space[b.token] = list(agi.common.state_space[b.token])
+            if b.requirement in state_space[b.token]:
+               state_space[b.token].remove(b.requirement)
+         if b.token == token:
+            localRetSet = set(state_space[token])
+      elif b.is_nonterminal():
+         gi = agi.generator_dict[b.nonterminal_name()]
+         firstValidRule = True  
+         for rule in gi.parser_output.instructions:
+            invalid = False
+            for b2 in rule.ipattern.bits:
+               if b2.is_operand_decider():
+                  if b2.test == 'eq':
+                     if ((b2.token in externalRequirements and b2.requirement not in externalRequirements[b2.token]) or
+                         (b2.token in state_space and b2.requirement not in state_space[b2.token])):
+                        invalid = True
+                        break
+                  else:
+                     if ((b2.token in externalRequirements and b2.requirement in externalRequirements[b2.token]) or
+                         (b2.token in state_space and b2.requirement in state_space[b2.token])):
+                        invalid = True
+                        break
+               else:
+                  #ToDo
+                  pass
+            if invalid:
+               continue
+            
+            for op in rule.operands:
+               if op.type == 'imm_const':
+                  req = int(op.bits,16)
+                  if op.name == token:
+                     localRetSet.add(req)
+                  if firstValidRule or not op.name in state_space:
+                     state_space[op.name] = set()
+                  state_space[op.name].add(req)
+               # ToDo: other cases
+            firstValidRule = False
+            
+      if localRetSet: 
+         retSet = localRetSet
+   return retSet
+
+
+def addFlagsOperand(ii, XMLInstr):
+   XMLOperand = SubElement(XMLInstr, 'operand')
+   XMLOperand.attrib['idx'] = str(len(XMLInstr.findall('operand')))
+   XMLOperand.attrib['type'] = 'flags'
+   XMLOperand.attrib['suppressed'] = '1'
+   
+   allFlags = set()
+   readFlags = set()
+   writtenFlags = set()
+   conditionallyWrittenFlags = set()
+   undefFlags = set()
+   
+   for fr in ii.flags_info.flags_recs: 
+      for flag_action in fr.flag_actions: 
+         flag = flag_action.flag.upper()
+         allFlags.add(flag)
+         
+         if fr.conditional_writes_flags() or fr.qualifier:
+            conditionallyWrittenFlags.add(flag)
+         if flag_action.reads_flag():
+           readFlags.add(flag)
+         if flag_action.writes_flag():
+            writtenFlags.add(flag)
+         if flag_action.makes_flag_undefined():
+            undefFlags.add(flag)
+   
+   for flag in allFlags:
+      modifier = ''
+      if flag in undefFlags: 
+         modifier = 'undef'
+      else:
+         if flag in readFlags:
+            modifier = 'r'
+            if flag in writtenFlags:
+               modifier += '/'
+         if flag in writtenFlags:
+            if flag in conditionallyWrittenFlags:
+               modifier += 'c'
+            modifier += 'w'      
+      if not modifier: continue      
+      XMLOperand.attrib['flag_' + flag] = modifier
+      
+   if readFlags:
+      XMLOperand.attrib['r'] = '1'
+   if writtenFlags or undefFlags:
+      XMLOperand.attrib['w'] = '1'
+   if conditionallyWrittenFlags:
+      XMLOperand.attrib['conditionalWrite'] = '1'
+
+
+def getInstrString(XMLInstr, stringSuffix):
+   instrString = XMLInstr.attrib['iclass']
+   if instrString.startswith('REP'):
+      instrString = instrString.split('_')[1]   
+   instrString += stringSuffix   
+   instrString = instrString.upper()   
+   parList = []
+   for opNode in XMLInstr.findall('./operand'):
+      if opNode.attrib.get('suppressed', '0') == '1':
+         if opNode.text and 'ST(0)' in opNode.text:
+               parList.append('ST0')
+         else:
+            continue
+      if opNode.attrib['type'] == 'reg':
+         if not ',' in opNode.text:
+            parList.append(opNode.text)
+         else:
+            if 'XMM' in opNode.text:
+               parList.append('XMM')
+            elif 'YMM' in opNode.text:
+               parList.append('YMM')
+            elif 'ZMM' in opNode.text:
+               parList.append('ZMM')
+            elif 'MM' in opNode.text:
+               parList.append('MM')
+            elif 'K1' in opNode.text:
+               parList.append('K')
+            elif 'DR' in opNode.text:
+               parList.append('DR')
+            elif 'CR' in opNode.text:
+               parList.append('CR')
+            elif 'BND' in opNode.text:
+               parList.append('BND')
+            elif 'ST' in opNode.text:
+               parList.append('ST')
+            elif 'CS' in opNode.text:
+               parList.append('SEG')
+            else:
+               parList.append('R' + opNode.attrib.get('width', ''))
+      if opNode.attrib['type'] == 'mem':
+         if 'VSIB' in opNode.attrib:
+            parList.append('VSIB_' + opNode.attrib['VSIB'])
+         elif 'memory-suffix' in opNode.attrib:
+            parList.append('M' + opNode.attrib['width'] + '_' + opNode.attrib['memory-suffix'].strip('{}'))
+         else:
+            parList.append('M' + opNode.attrib['width'])
+      if opNode.attrib['type'] == 'imm':
+         if opNode.text:
+            parList.append(opNode.text)
+         else:
+            parList.append('I' + opNode.attrib['width'])
+      if opNode.attrib['type'] == 'relbr':
+         parList.append('Rel' + opNode.attrib['width'])
+   
+   parStr = ', '.join(parList)
+   if parStr:
+      parStr = ' (' + parStr + ')'         
+   instrString += parStr   
+   return instrString
+
+
+def getMemoryPrefix(width, ii):
+   if ii.category in ['GATHER', 'AVX2GATHER', 'SCATTER'] or ii.iclass in ['LAR', 'LSL', 'INVPCID', 'CALL_FAR', 'JMP_FAR', 'RET_FAR', 'LWPVAL', 'LWPINS',
+                                                                          'WRSSD', 'WRSSQ', 'WRUSSD', 'WRUSSQ', 'VPOPCNTD', 'MOVDIR64B', 'MOVDIRI']:
+      return None
+   elif width == '8':
+      return 'byte ptr'
+   elif width == '16':
+      return 'word ptr'
+   elif width == '32':
+      return 'dword ptr'
+   elif width == '64':
+      return 'qword ptr'
+   elif width == '80' and ii.extension in ['X87']:
+      return 'tbyte ptr'
+   elif width == '128':
+      return 'xmmword ptr'
+   elif width == '256':
+      return 'ymmword ptr'
+   elif width == '512':
+      return 'zmmword ptr'
+   else:
+      return None
+
+
+def generateXMLFile(agi):   
+   widths_list_dict = {}   
+   for w in agi.widths_list:
+      widths_list_dict[w.name] = w.widths
+   
+   allInstructions = []
+   for gi in agi.generator_list:
+      for ii in gi.parser_output.instructions:
+         if not field_check(ii,'iclass'):
+            break
+         allInstructions.append(ii)
+   
+   extensionToIclassesDict = {}
+   for ii in allInstructions:
+      ext = ii.extension
+      if not ext in extensionToIclassesDict:
+         extensionToIclassesDict[ext] = set()
+      extensionToIclassesDict[ext].add(ii.iclass)
+   
+   XMLRoot = Element('root')   
+   addedXMLInstrs = {}
+   
+   for ii in allInstructions:
+      if ii.comment and 'UNDOC' in ii.comment and not ii.iform_enum in ['FCOM_ST0_X87', 'FSTP_X87_ST0'] and not ii.iclass in ['LOOPE', 'LOOPNE']: 
+         continue
+            
+      if ii.iclass in ['UD0', 'UD1', 'PREFETCH_RESERVED']:
+         # no information in the manual on these instructions
+         continue
+      
+      if ii.iform_enum in ['SHL_MEMb_IMMb_C0r6', 'SHL_GPR8_IMMb_C0r6', 'SHL_MEMv_IMMb_C1r6', 'SHL_GPRv_IMMb_C1r6', 'SHL_MEMb_ONE_D0r6', 'SHL_GPR8_ONE_D0r6',
+                           'SHL_GPRv_ONE_D1r6', 'SHL_MEMv_ONE_D1r6', 'SHL_MEMb_CL_D2r6', 'SHL_GPR8_CL_D2r6', 'SHL_MEMv_CL_D3r6', 'SHL_GPRv_CL_D3r6',
+                           'TEST_MEMb_IMMb_F6r1', 'TEST_GPR8_IMMb_F6r1', 'TEST_MEMv_IMMz_F7r1', 'TEST_GPRv_IMMz_F7r1', 'PREFETCHW_0F0Dr3', 
+                           'MOVQ_XMMdq_MEMq_0F7E', 'MOVQ_MEMq_XMMq_0FD6']:
+         # no information in the manual on these encodings
+         continue
+      
+      if ii.iclass == 'NOP' and (ii.uname in ['NOP0F18', 'NOP0F19', 'NOP0F1A', 'NOP0F1B', 'NOP0F1C', 'NOP0F1D', 'NOP0F1E'] or
+                                   len([o for o in ii.operands if not o.visibility == 'SUPPRESSED']) > 1):
+         # no information in the manual on these variants
+         continue
+      
+      if (ii.iform_enum in ['ENCLV', 'MOVQ_XMMdq_MEMq_0F6E', 'MOVQ_MEMq_XMMq_0F7E', 'MOVQ_MMXq_MEMq_0F6E', 'MOVQ_MEMq_MMXq_0F7E', 'VMOVQ_XMMdq_MEMq_6E', 
+                           'VMOVQ_MEMq_XMMq_7E', 'VPEXTRW_GPR32d_XMMdq_IMMb_15', 'PUSH_GPRv_FFr6', 'MOV_GPR8_IMMb_C6r0', 'POP_GPRv_8F',
+                           'PEXTRW_SSE4_GPR32_XMMdq_IMMb'] or (ii.iform_enum == 'VPEXTRW_GPR32u16_XMMu16_IMM8_AVX512' and ii.iclass == 'VPEXTRW')):
+         # there is no assembler code to emit these encodings
+         continue
+      
+      if ii.iclass == 'SYSRET' and any(op for op in ii.operands if op.bits == 'XED_REG_EIP'):
+         continue
+      
+      requiresRexW = False      
+      for bit in ii.ipattern.bits:                  
+         if bit.value == 'REXW=1':
+            requiresRexW = True
+      
+      # EVEX encoded instructions for which there is a non-EVEX encoded instruction with the same iclass
+      requiresEvexPrefix = ('EVEX' in ii.extension and not 'ZMM' in ii.iform_enum and 
+                            any(ext for ext, icl in extensionToIclassesDict.items() if ii.extension != ext and ii.iclass in icl)) or ii.iclass == 'VPEXTRW_C5'
+            
+      modeSet = findPossibleValuesForToken(ii.ipattern.bits, 'MODE', {}, agi)
+      if modeSet and not (2 in modeSet):
+         continue
+         
+      easzSet = findPossibleValuesForToken(ii.ipattern.bits, 'EASZ', {'MODE':{2}}, agi)
+      if easzSet and not (3 in easzSet): 
+         continue
+      
+      hasGPR8Operand = False
+      for operand in ii.operands:
+         if operand.type == 'nt_lookup_fn' and 'GPR8' in operand.lookupfn_name:
+            hasGPR8Operand = True
+            break
+      
+      if hasOperandSensitiveToEOSZ(ii.operands, agi, widths_list_dict) or 'REP' in ii.iclass or (ii.iclass in ['PCMPESTRI', 'PCMPESTRM', 'PCMPISTRI',
+                                                                                       'PCMPISTRI', 'VPCMPESTRI', 'VPCMPESTRM', 'VPCMPISTRI', 'VPCMPISTRI']):
+         eoszSet = findPossibleValuesForToken(ii.ipattern.bits, 'EOSZ', {'MODE':[2], 'EASZ':[3]}, agi)
+         if not eoszSet:
+            vexvalidSet = findPossibleValuesForToken(ii.ipattern.bits, 'VEXVALID', {'MODE':[2], 'EASZ':[3]}, agi)
+            oszSet = findPossibleValuesForToken(ii.ipattern.bits, 'OSZ', {'MODE':[2], 'EASZ':[3]}, agi)
+            if ((len(vexvalidSet) >= 1 and not (0 in vexvalidSet)) or (0 in oszSet) or ii.extension == 'RDWRFSGS' or 
+                  ii.iform_enum in ['CRC32_GPRyy_GPR8b', 'CRC32_GPRyy_MEMb', 'XSTORE'] or 'REP' in ii.iclass):
+               eoszSet = {2,3}
+            elif ii.iform_enum in ['MOV_GPRv_IMMz']:
+               # there is no assembler code to emit these encodings for smaller eosz
+               eoszSet = {3}
+            else:
+               eoszSet = {1,2,3}
+      else:
+         eoszSet = {0}
+      
+      zeroingSet = findPossibleValuesForToken(ii.ipattern.bits, 'ZEROING', {'MODE':{2}}, agi)
+            
+      for eosz in eoszSet:
+         for noRex in ([False,True] if hasGPR8Operand else [None]):
+            for broadcast in ([False,True] if ii.attributes and 'BROADCAST_ENABLED' in ii.attributes else [False]):
+               maskopList = [False]
+               if ii.attributes and 'MASKOP_EVEX' in ii.attributes:
+                  if 'GATHER' in ii.attributes or 'SCATTER' in ii.attributes:
+                     maskopList = [True]
+                  else: maskopList = [False, True]
+               for maskop in maskopList:
+                  for zeroing in ([False,True] if maskop and zeroingSet != {0} else [False]):
+                     state_space = {'MODE':[2], 'EASZ':[3], 'EOSZ':[eosz]}
+                     if ii.attributes and 'BROADCAST_ENABLED' in ii.attributes:
+                        state_space['BCRC'] = [int(broadcast)]
+                        
+                     if eosz == 1:
+                        if ii.iclass in ['BSWAP']:
+                           # "When the BSWAP instruction references a 16-bit register, the result is undefined." (Instruction set reference)
+                           continue
+                        if ii.iclass in ['MOVSX', 'MOVZX'] and ('GPR16' in ii.iform_enum or 'MEMw' in ii.iform_enum):
+                           # not documented in the manual
+                           continue
+                     if eosz <= 2 and ii.iclass in ['MOVSXD']:
+                        # not accepted by assembler (GNU and NASM)
+                        continue
+                     if eosz == 3 and ii.iform_enum in ['VPCMPESTRI_XMMdq_MEMdq_IMMb', 'VPCMPESTRM_XMMdq_MEMdq_IMMb', 'VPCMPISTRI_XMMdq_MEMdq_IMMb',
+                                                        'VPCMPISTRI_XMMdq_XMMdq_IMMb']:
+                        # there is no assembler code to emit these encodings
+                        continue
+                     if ii.iclass in ['MOVSX', 'MOVZX', 'CRC32'] and noRex and eosz == 3:
+                        continue
+                     
+                     XMLInstr = Element('instruction')
+                     XMLInstr.attrib['iform'] = ii.iform_enum
+                     XMLInstr.attrib['iclass'] = ii.iclass
+                     XMLInstr.attrib['category'] = ii.category
+                     XMLInstr.attrib['isa-set'] = ii.isa_set
+                     XMLInstr.attrib['extension'] = ii.extension
+                     XMLInstr.attrib['cpl'] = str(ii.cpl)
+                     if field_check(ii,'disasm_intel'):
+                        XMLInstr.attrib['asm'] = ii.disasm_intel.upper()
+                     else:
+                        XMLInstr.attrib['asm'] = ii.iclass
+                     if ii.iclass in ['IRET', 'POPF', 'PUSHF']:
+                        XMLInstr.attrib['asm'] += 'W'
+                     if eosz:
+                        XMLInstr.attrib['eosz'] = str(eosz)
+                     if maskop:
+                        XMLInstr.attrib['mask'] = str(int(maskop))
+                     
+                     stringSuffix = ''                     
+                     if 'REP' in ii.iclass:
+                        repSet = findPossibleValuesForToken(ii.ipattern.bits, 'REP', state_space, agi)
+                        rep = ''
+                        if repSet == {2}:
+                           rep = 'REPNE'
+                        elif repSet == {3}:
+                           rep = 'REPE'
+                        else:
+                           msge(ii.iform_enum +  ', rep: ' + str(repSet))
+                           continue
+                        XMLInstr.attrib['asm'] = rep + ' ' + XMLInstr.attrib['asm']
+                        XMLInstr.attrib['rep'] = str(next(iter(repSet)))
+                        stringSuffix += '_'  + rep
+                     
+                     if ii.iclass == 'RET_FAR':
+                        XMLInstr.attrib['asm'] = 'RETF'
+                     if eosz == 1 and (ii.iclass in ['ENTER', 'LEAVE', 'RET_FAR'] or ii.iform_enum in ['POP_FS', 'POP_GS', 'PUSH_FS', 'PUSH_GS', 'PUSH_IMMb']):
+                        XMLInstr.attrib['asm'] += 'W'
+                        stringSuffix += '_W'
+                     if eosz == 3:                        
+                        if (('REP' in ii.iclass and not ii.iclass[-1] == 'Q') or ii.iclass in ['PCMPESTRI', 'PCMPESTRM', 'PCMPISTRI', 'XBEGIN', 'XSTORE']):
+                           XMLInstr.attrib['asm'] = 'REX64 ' + XMLInstr.attrib['asm']
+                           stringSuffix += '_REX64'
+                        elif ii.iclass in ['RET_FAR', 'VPCMPESTRI', 'VPCMPESTRM', 'VPCMPISTRI']:
+                           XMLInstr.attrib['asm'] += 'Q'
+                           stringSuffix += '_Q'
+                     
+                     if requiresEvexPrefix and not maskop:
+                        XMLInstr.attrib['asm'] = '{evex} ' + XMLInstr.attrib['asm']
+                        stringSuffix += '_EVEX'
+                        
+                     if any(x in ii.iform_enum for x in ['GPRv_GPRv_', 'GPR8_GPR8_', 'MMXq_MMXq_0', 'XMMss_XMMss_0', 'XMMps_XMMps_0', 'VMOVQ_XMMdq_XMMq_',
+                                                         'XMMdq_XMMdq_XMMq_1', 'XMMsd_XMMsd_0', 'XMMdq_XMMdq_XMMd_1', '_XMMdq_XMMdq_2', '_XMMdq_XMMq_0', 
+                                                         'XMMdq_XMMdq_1', 'YMMqq_YMMqq_1', '_YMMqq_YMMqq_2', 'XMMdq_XMMdq_0', '_XMMpd_XMMpd_0', 
+                                                         'VMOVDQA_XMMdq_XMMdq_', 'VMOVDQA_YMMqq_YMMqq', 'VMOVDQU_XMMdq_XMMdq_', 'VMOVDQU_YMMqq_YMMqq_']):
+                        iformPrefix = ii.iform_enum[0:ii.iform_enum.rfind('_')]
+                        otherIform = next(x.iform_enum for x in allInstructions if x.iform_enum.startswith(iformPrefix) and not x.iform_enum == ii.iform_enum)
+                        if ii.iform_enum < otherIform:
+                           XMLInstr.attrib['asm'] = '{load} ' + XMLInstr.attrib['asm']                     
+                        else:
+                           XMLInstr.attrib['asm'] = '{store} ' + XMLInstr.attrib['asm']
+                        stringSuffix += ii.iform_enum[ii.iform_enum.rfind('_'):]
+                     
+                     lockSet = findPossibleValuesForToken(ii.ipattern.bits, 'LOCK', state_space, agi)
+                     if lockSet == {1}:
+                        if ii.iclass == 'XCHG': continue
+                        XMLInstr.attrib['asm'] = 'LOCK ' + XMLInstr.attrib['asm']
+                     
+                     saeSet = findPossibleValuesForToken(ii.ipattern.bits, 'SAE', state_space, agi)
+                     roundcSet = findPossibleValuesForToken(ii.ipattern.bits, 'ROUNDC', state_space, agi)
+                     if roundcSet:
+                        XMLInstr.attrib['roundc'] = '1'
+                        XMLInstr.attrib['sae'] = '1'
+                        stringSuffix += '_ER'
+                     elif saeSet and (1 in saeSet):
+                        XMLInstr.attrib['sae'] = '1'
+                        stringSuffix += '_SAE'
+                     
+                     if zeroing:                     
+                        XMLInstr.attrib['zeroing'] = '1'
+                        stringSuffix += '_Z'
+                     
+                     if ii.attributes and 'LOCKED' in ii.attributes:
+                        XMLInstr.attrib['locked'] = '1'
+                          
+                     for operand in ii.operands:
+                        if operand.internal: 
+                           continue  
+                        if operand.lookupfn_name and 'FLAGS' in operand.lookupfn_name:                           
+                           continue
+                        if any(x in operand.name for x in ['BASE', 'INDEX', 'SEG']):
+                           continue
+                        
+                        usesMaskopReg = operand.lookupfn_name and ('MASK1' in operand.lookupfn_name or 'MASKNOT0' in operand.lookupfn_name)
+                        if not maskop and usesMaskopReg:
+                           continue
+                            
+                        XMLOperand = SubElement(XMLInstr, 'operand')
+                        XMLOperand.attrib['idx'] = str(len(XMLInstr.findall('operand')))
+                        if 'r' in operand.rw:
+                           XMLOperand.attrib['r'] = '1'
+                        if 'w' in operand.rw:
+                           XMLOperand.attrib['w'] = '1'
+                        if operand.visibility == 'SUPPRESSED' or (operand.visibility == 'IMPLICIT' and ii.category in ['X87_ALU']):
+                           XMLOperand.attrib['suppressed'] = '1'
+                        elif operand.visibility == 'IMPLICIT':
+                           XMLOperand.attrib['implicit'] = '1'
+                        
+                        if 'REG' in operand.name:
+                           XMLOperand.attrib['type'] = 'reg'
+                           
+                           if maskop and usesMaskopReg: 
+                              XMLOperand.attrib['opmask'] = '1'
+                           
+                           if maskop and not zeroing and len(XMLInstr.findall('operand')) == 1:
+                              XMLOperand.attrib['r'] = '1'                                 
+                           
+                           register_names = getAllRegisterNamesForOperand(operand, agi, maskop, eosz, noRex) 
+                           XMLOperand.text = ','.join(register_names)
+                           
+                           width = None
+                           if XMLOperand.text in ['RSP', 'RIP']:
+                              width = '64'
+                           elif not operand.xtype or operand.xtype == 'INVALID':                        
+                              if operand.lookupfn_name in agi.extra_widths_nt:
+                                 extra_width_nt = agi.extra_widths_nt[operand.lookupfn_name].upper()
+                                 if extra_width_nt == 'ASZ':
+                                    width = widths_list_dict[extra_width_nt][3]
+                                 else:
+                                    width = widths_list_dict[extra_width_nt][eosz]                           
+                           else:
+                              width = widths_list_dict[operand.oc2.upper()][eosz]
+                                          
+                           if width: 
+                              XMLOperand.attrib['width'] = width
+                           
+                           if operand.xtype and not operand.xtype == 'INVALID' and not XMLOperand.text in ['RSP', 'RIP']:
+                              XMLOperand.attrib['xtype'] = operand.xtype                          
+                        elif operand.type == 'imm_const':
+                           o = operand.name.upper()
+                           o=re.sub('IMM[01]','IMM',o)
+                           o=re.sub('MEM[01]','MEM',o)
+                           
+                           if operand.oc2:  
+                              widths = widths_list_dict[operand.oc2.upper()]
+                           else:
+                              widths = agi.extra_widths_imm_const[operand.name.upper()]
+                           width = widths[eosz]
+                           
+                           if o == 'IMM':
+                              XMLOperand.attrib['type'] = 'imm'
+                              XMLOperand.attrib['width'] = width
+                              if ii.attributes and 'IMPLICIT_ONE' in ii.attributes:
+                                 XMLOperand.text = '1'
+                           elif o == 'RELBR':
+                              XMLOperand.attrib['type'] = 'relbr'
+                              XMLOperand.attrib['width'] = width
+                              if width == '32':
+                                 XMLInstr.attrib['asm'] = '{disp32} ' + XMLInstr.attrib['asm']
+                           elif (o == 'AGEN'):
+                              XMLOperand.attrib['type'] = 'agen'
+                           elif (o == 'MEM'):
+                              if operand.oc2 and agi.widths_dict[operand.oc2.upper()] == 'var':
+                                 nelem =  next(iter(findPossibleValuesForToken(ii.ipattern.bits, 'NELEM', state_space, agi)))
+                                 element_size = next(iter(findPossibleValuesForToken(ii.ipattern.bits, 'ELEMENT_SIZE', state_space, agi)))
+                                 width = str(nelem*element_size)
+                                    
+                              XMLOperand.attrib['type'] = 'mem'
+                              XMLOperand.attrib['width'] = width
+                              XMLOperand.attrib['xtype'] = operand.xtype
+                              
+                              for operand2 in ii.operands:
+                                 if operand.name[-1] != operand2.name[-1]: continue
+                                 if 'BASE' in operand2.name:
+                                    XMLOperand.attrib['base'] = getAllRegisterNamesForOperand(operand2, agi, False, eosz, noRex)[-1]
+                                 if 'SEG' in operand2.name:
+                                    XMLOperand.attrib['seg'] = operand2.lookupfn_name.split('_')[1][0:2]
+                                 if 'INDEX' in operand2.name:
+                                    XMLOperand.attrib['index'] = getAllRegisterNamesForOperand(operand2, agi, False, eosz, noRex)[-1]
+                            
+                              memoryPrefix = getMemoryPrefix(width, ii)
+                              if memoryPrefix:
+                                 XMLOperand.attrib['memory-prefix'] = memoryPrefix
+                              
+                              for bit in ii.ipattern.bits:
+                                  if 'VMODRM' in bit.value:
+                                      XMLOperand.attrib['VSIB'] = bit.value.split('_')[-1][0:3]
+                                      break
+                              
+                              if broadcast:
+                                 bcastValues = findPossibleValuesForToken(ii.ipattern.bits, 'BCAST', state_space, agi)
+                                 if len(bcastValues) > 1:
+                                    msge('BCAST: ' + str(bcastValues))
+                                 bcast = next(iter(bcastValues))
+                                 XMLOperand.attrib['memory-suffix'] = BCASTSTR[bcast]
+                                 XMLInstr.attrib['bcast'] = str(bcast)
+                        
+                     if ii.flags_info:
+                        addFlagsOperand(ii, XMLInstr)
+                     
+                     if noRex:
+                        XMLInstr.attrib['norex'] = '1'
+                        stringSuffix += '_NOREX'
+                     
+                     instrString = getInstrString(XMLInstr, stringSuffix)                     
+                     XMLInstr.attrib['string'] = instrString
+                     
+                     if instrString in addedXMLInstrs:
+                        XMLStr = tostring(XMLInstr)
+                        prevXMLStr = tostring(addedXMLInstrs[instrString])
+                        if XMLStr == prevXMLStr:
+                           msge ('Duplicate: ' + ii.iform_enum)                           
+                        else:
+                           msge('Same instrString:')
+                           msge('  ' + prevXMLStr)
+                           msge('  ' + XMLStr)
+                     else:
+                        addedXMLInstrs[instrString] = XMLInstr                        
+                        
+                        XMLExtension = XMLRoot.find('extension[@name="'+ii.extension+'"]')
+                        if XMLExtension is None:
+                           XMLExtension = SubElement(XMLRoot, 'extension')
+                           XMLExtension.attrib['name'] = ii.extension    
+                        
+                        XMLExtension.append(XMLInstr)
+      
+   rough_string = ElementTree.tostring(XMLRoot, 'utf-8')
+   reparsed = minidom.parseString(rough_string)
+   with open('instructions.xml', 'w') as f:
+      f.write(reparsed.toprettyxml(indent='  '))
+
+############################################################################
 
 def find_dir(d):
     dir = os.getcwd()
@@ -5599,6 +6262,11 @@ def gen_everything_else(agi):
     collect_iclass_strings(agi)
     collect_instruction_types(agi, agi.iform_info)
     agi.isa_sets = collect_isa_sets(agi)
+    
+    # Generate the XML file.
+    print_resource_usage('XML file')
+    generateXMLFile(agi)    
+    #sys.exit(0)  
     
     # idata.txt file write
     write_instruction_data(agi.common.options.gendir,agi.iform_info)
