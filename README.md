@@ -17,7 +17,7 @@ The combination of an *XED iform* and the *eosz*, *norex*, *rep*, *zeroing*, *ma
 
 ## Generating assembler code for all instruction variants
 
-xmlToAssembler.py is a short Python script that shows how the instructions.xml file can used to generate assembler code for all instruction variants.
+xmlToAssembler.py is a short Python script that shows how the instructions.xml file can be used to generate assembler code for all instruction variants.
 
 ## (Re)generating instructions.xml
 
