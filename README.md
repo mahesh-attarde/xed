@@ -1,11 +1,11 @@
-# XED to XML Converter
+# XED to XML converter
 
 The goal of this project is to create a machine-readable XML representation of the x86 instruction set that makes it easy to automatically generate assembler code for all instruction variants.
 A particular use case for this is the automatic generation of microbenchmarks for measuring the performance of x86 instructions (see [uops.info](http://uops.info/)).
 
 We currently only consider instruction variants that can be used in 64-bit mode and that use an effective address size of 64 bits.
 The assembler code is intended to be used with the GNU assembler, using the [".intel_syntax noprefix" directive](http://www.sourceware.org/binutils/docs-2.12/as.info/i386-Syntax.html). 
-However, it should be relatively straight-forward to adapt it to other assemblers.
+However, it should be relatively straightforward to adapt it to other assemblers.
 
 ## "Instruction variants" vs. XED iforms
 
