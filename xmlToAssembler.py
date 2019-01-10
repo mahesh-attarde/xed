@@ -72,7 +72,7 @@ def main():
          if instrNode.attrib.get('roundc', '') == '1':
             asm += ', {rn-sae}'
          elif instrNode.attrib.get('sae', '') == '1':
-            asm += ', {sae}' 
+            asm += ', {sae}'
       
       print asm
 
