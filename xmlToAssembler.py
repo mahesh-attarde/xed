@@ -6,15 +6,11 @@ def main():
    
    print '.intel_syntax noprefix'      
    for instrNode in root.iter('instruction'):
-      extension = instrNode.attrib['extension']
-      isa_set = instrNode.attrib['isa-set']
-      
       # Future instruction set extensions
-      if extension in ['CLDEMOTE', 'MOVDIR', 'PCONFIG', 'WAITPKG', 'WBNOINVD']:
+      if instrNode.attrib['extension'] in ['CLDEMOTE', 'MOVDIR', 'PCONFIG', 'WAITPKG', 'WBNOINVD']:
          continue
       
-      asm = instrNode.attrib['asm']
-      
+      asm = instrNode.attrib['asm']      
       first = True
       for operandNode in instrNode.iter('operand'):
          operandIdx = int(operandNode.attrib['idx'])
