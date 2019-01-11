@@ -142,7 +142,7 @@ def getAllRegisterNamesForOperand(operand, agi, mask, EOSZ=None, rex=None):
                if rex:
                   if isInconsistent(b, 'REX', 1):
                      admissibleRule = False
-                     break                  
+                     break
                else:
                   if isInconsistent(b, 'REX', 0) or isInconsistent(b, 'REXR', 0) or isInconsistent(b, 'REXB', 0):
                      admissibleRule = False
