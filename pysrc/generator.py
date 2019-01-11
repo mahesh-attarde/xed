@@ -124,7 +124,7 @@ def isInconsistent(bit, token, value):
    return False
 
 
-def getAllRegisterNamesForOperand(operand, agi, mask, EOSZ=None, noRex=None):
+def getAllRegisterNamesForOperand(operand, agi, mask, EOSZ=None, rex=None):
    if operand.type == 'nt_lookup_fn':
       o = operand.lookupfn_name 
 
@@ -138,18 +138,19 @@ def getAllRegisterNamesForOperand(operand, agi, mask, EOSZ=None, noRex=None):
             if isInconsistent(b, 'EOSZ', EOSZ):
                admissibleRule = False
                break
-            if noRex is not None:
-               if noRex:
+            if rex is not None:
+               if rex:
+                  if isInconsistent(b, 'REX', 1):
+                     admissibleRule = False
+                     break                  
+               else:
                   if isInconsistent(b, 'REX', 0) or isInconsistent(b, 'REXR', 0) or isInconsistent(b, 'REXB', 0):
                      admissibleRule = False
                      break
-               else:
-                  if isInconsistent(b, 'REX', 1):
-                     admissibleRule = False
-                     break
+                  
          if not admissibleRule: continue
 
-         returnList.extend(getAllRegisterNamesForOperand(rule.operands[0], agi, mask, EOSZ, noRex))
+         returnList.extend(getAllRegisterNamesForOperand(rule.operands[0], agi, mask, EOSZ, rex))
       return returnList
    elif operand.type == 'reg':
       o = operand.bits.upper()
@@ -467,7 +468,7 @@ def generateXMLFile(agi):
       zeroingSet = findPossibleValuesForToken(ii.ipattern.bits, 'ZEROING', {'MODE':{2}}, agi)
             
       for eosz in eoszSet:
-         for noRex in ([False,True] if hasGPR8Operand else [None]):
+         for rex in ([False,True] if hasGPR8Operand else [None]):
             for broadcast in ([False,True] if ii.attributes and 'BROADCAST_ENABLED' in ii.attributes else [False]):
                maskopList = [False]
                if ii.attributes and 'MASKOP_EVEX' in ii.attributes:
@@ -494,7 +495,7 @@ def generateXMLFile(agi):
                                                         'VPCMPISTRI_XMMdq_XMMdq_IMMb']:
                         # there is no assembler code to emit these encodings
                         continue
-                     if ii.iclass in ['MOVSX', 'MOVZX', 'CRC32'] and noRex and eosz == 3:
+                     if ii.iclass in ['MOVSX', 'MOVZX', 'CRC32'] and rex == False and eosz == 3:
                         continue
                      
                      XMLInstr = Element('instruction')
@@ -529,6 +530,15 @@ def generateXMLFile(agi):
                         XMLInstr.attrib['asm'] = rep + ' ' + XMLInstr.attrib['asm']
                         XMLInstr.attrib['rep'] = str(next(iter(repSet)))
                         stringSuffix += '_'  + rep
+                     
+                     if rex is not None:
+                        if rex:
+                           XMLInstr.attrib['asm'] = 'REX ' + XMLInstr.attrib['asm']
+                           XMLInstr.attrib['rex'] = '1'
+                           stringSuffix += '_REX'                           
+                        else:
+                           XMLInstr.attrib['rex'] = '0'
+                           stringSuffix += '_NOREX'
                      
                      if ii.iclass == 'RET_FAR':
                         XMLInstr.attrib['asm'] = 'RETF'
@@ -613,7 +623,7 @@ def generateXMLFile(agi):
                            if maskop and not zeroing and len(XMLInstr.findall('operand')) == 1:
                               XMLOperand.attrib['r'] = '1'                                 
                            
-                           register_names = getAllRegisterNamesForOperand(operand, agi, maskop, eosz, noRex) 
+                           register_names = getAllRegisterNamesForOperand(operand, agi, maskop, eosz, rex) 
                            XMLOperand.text = ','.join(register_names)
                            
                            width = None
@@ -670,11 +680,11 @@ def generateXMLFile(agi):
                               for operand2 in ii.operands:
                                  if operand.name[-1] != operand2.name[-1]: continue
                                  if 'BASE' in operand2.name:
-                                    XMLOperand.attrib['base'] = getAllRegisterNamesForOperand(operand2, agi, False, eosz, noRex)[-1]
+                                    XMLOperand.attrib['base'] = getAllRegisterNamesForOperand(operand2, agi, False, eosz, rex)[-1]
                                  if 'SEG' in operand2.name:
                                     XMLOperand.attrib['seg'] = operand2.lookupfn_name.split('_')[1][0:2]
                                  if 'INDEX' in operand2.name:
-                                    XMLOperand.attrib['index'] = getAllRegisterNamesForOperand(operand2, agi, False, eosz, noRex)[-1]
+                                    XMLOperand.attrib['index'] = getAllRegisterNamesForOperand(operand2, agi, False, eosz, rex)[-1]
                             
                               memoryPrefix = getMemoryPrefix(width, ii)
                               if memoryPrefix:
@@ -695,10 +705,6 @@ def generateXMLFile(agi):
                         
                      if ii.flags_info:
                         addFlagsOperand(ii, XMLInstr)
-                     
-                     if noRex:
-                        XMLInstr.attrib['norex'] = '1'
-                        stringSuffix += '_NOREX'
                      
                      instrString = getInstrString(XMLInstr, stringSuffix)                     
                      XMLInstr.attrib['string'] = instrString
