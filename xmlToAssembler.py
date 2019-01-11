@@ -30,11 +30,8 @@ def main():
          
          if operandNode.attrib['type'] == 'reg':
             registers = operandNode.text.split(',')
-            if 'DH' in registers:
-               register = 'DH'
-            else:
-               scale = (4 if 'MM' in operandNode.text else 1)
-               register = registers[min(operandIdx*scale, len(registers)-1)]
+            scale = (4 if 'MM' in operandNode.text else 1)
+            register = registers[min(operandIdx*scale, len(registers)-1)]
             if not operandNode.attrib.get('opmask', '') == '1':
                asm += register
             else:
