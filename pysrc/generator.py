@@ -239,12 +239,7 @@ def findPossibleValuesForToken(bits, token, externalRequirements, agi):
    return retSet
 
 
-def addFlagsOperand(ii, XMLInstr):
-   XMLOperand = SubElement(XMLInstr, 'operand')
-   XMLOperand.attrib['idx'] = str(len(XMLInstr.findall('operand')))
-   XMLOperand.attrib['type'] = 'flags'
-   XMLOperand.attrib['suppressed'] = '1'
-   
+def generateFlagsOperand(ii, XMLOperand):
    allFlags = set()
    readFlags = set()
    writtenFlags = set()
@@ -593,8 +588,8 @@ def generateXMLFile(agi):
                           
                      for operand in ii.operands:
                         if operand.internal: 
-                           continue  
-                        if operand.lookupfn_name and 'FLAGS' in operand.lookupfn_name:                           
+                           continue
+                        if operand.lookupfn_name and 'FLAGS' in operand.lookupfn_name:
                            continue
                         if any(x in operand.name for x in ['BASE', 'INDEX', 'SEG']):
                            continue
@@ -605,6 +600,8 @@ def generateXMLFile(agi):
                             
                         XMLOperand = SubElement(XMLInstr, 'operand')
                         XMLOperand.attrib['idx'] = str(len(XMLInstr.findall('operand')))
+                        XMLOperand.attrib['name'] = operand.name
+                        
                         if 'r' in operand.rw:
                            XMLOperand.attrib['r'] = '1'
                         if 'w' in operand.rw:
@@ -704,7 +701,13 @@ def generateXMLFile(agi):
                                  XMLInstr.attrib['bcast'] = str(bcast)
                         
                      if ii.flags_info:
-                        addFlagsOperand(ii, XMLInstr)
+                        XMLOperand = SubElement(XMLInstr, 'operand')
+                        XMLOperand.attrib['idx'] = str(len(XMLInstr.findall('operand')))
+                        XMLOperand.attrib['type'] = 'flags'
+                        XMLOperand.attrib['suppressed'] = '1'
+                        if operand.lookupfn_name and 'FLAGS' in operand.lookupfn_name:
+                           XMLOperand.attrib['suppressed'] = operand.name
+                        generateFlagsOperand(ii, XMLOperand)
                      
                      instrString = getInstrString(XMLInstr, stringSuffix)                     
                      XMLInstr.attrib['string'] = instrString
