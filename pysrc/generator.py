@@ -76,6 +76,7 @@ import optparse
 ############################################################################
 ## XED-to-XML code
 ############################################################################
+from collections import defaultdict 
 from xml.etree.ElementTree import Element, SubElement, Comment, tostring
 from xml.etree import ElementTree
 from xml.dom import minidom
@@ -537,7 +538,8 @@ def generateXMLFile(agi):
                      
                      if ii.iclass == 'RET_FAR':
                         XMLInstr.attrib['asm'] = 'RETF'
-                     if eosz == 1 and (ii.iclass in ['ENTER', 'LEAVE', 'RET_FAR'] or ii.iform_enum in ['POP_FS', 'POP_GS', 'PUSH_FS', 'PUSH_GS', 'PUSH_IMMb']):
+                     if eosz == 1 and (ii.iclass in ['ENTER', 'LEAVE', 'RET_FAR'] or 
+                                       ii.iform_enum in ['POP_FS', 'POP_GS', 'PUSH_FS', 'PUSH_GS', 'PUSH_IMMb', 'PUSH_IMMz']):
                         XMLInstr.attrib['asm'] += 'W'
                         stringSuffix += '_W'
                      if eosz == 3:                        
@@ -706,7 +708,7 @@ def generateXMLFile(agi):
                         XMLOperand.attrib['type'] = 'flags'
                         XMLOperand.attrib['suppressed'] = '1'
                         if operand.lookupfn_name and 'FLAGS' in operand.lookupfn_name:
-                           XMLOperand.attrib['suppressed'] = operand.name
+                           XMLOperand.attrib['name'] = operand.name
                         generateFlagsOperand(ii, XMLOperand)
                      
                      instrString = getInstrString(XMLInstr, stringSuffix)                     
@@ -730,6 +732,18 @@ def generateXMLFile(agi):
                            XMLExtension.attrib['name'] = ii.extension    
                         
                         XMLExtension.append(XMLInstr)
+   
+   # add missing attributes that are necessary to distinguish instruction variants with the same iforms
+   iformToXML = defaultdict(list)
+   for XMLInstr in XMLRoot.iter('instruction'):
+      iformToXML[XMLInstr.attrib['iform']].append(XMLInstr)
+   
+   for _, XMLList in iformToXML.items():
+      attributes = {a for XMLInstr in XMLList for a in XMLInstr.attrib}
+      for XMLInstr in XMLList:
+         for a in attributes:
+            if not a in XMLInstr.attrib:
+               XMLInstr.attrib[a] = '0'
       
    rough_string = ElementTree.tostring(XMLRoot, 'utf-8')
    reparsed = minidom.parseString(rough_string)
