@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 import argparse
 import re
 import subprocess
@@ -34,12 +36,8 @@ def parseXedOutput(output, useIACAMarkers=False):
                iacaStartMarkerFound = True
             continue
       
-      asm = lines[-2][6:]
-           
-      firstLineList = re.split("[ ,]*", lines[0])      
-      iform = firstLineList[1]
-      
-      tokens = {s[0]:(s[1] if len(s)>1 else '1') for x in firstLineList[2:] for s in [x.split(':')]}
+      tokensList = lines[0][re.match("\S* \S* ", lines[0]).end():].split(', ')
+      tokens = {s[0]:(s[1] if len(s)>1 else '1') for x in tokensList for s in [x.split(':')]}
       
       memOperands = {k:v for k, v in tokens.items() if re.match('MEM\d', k)}
       regOperands = {k:v for k, v in tokens.items() if re.match('REG\d', k)}
@@ -47,6 +45,9 @@ def parseXedOutput(output, useIACAMarkers=False):
       attributes = {k:v for k, v in tokens.items() if k in allAttributes}
       if 'MASK' in attributes and attributes['MASK'] != '0':
          attributes['MASK'] = '1'         
+      
+      asm = lines[-2][6:]
+      iform = lines[0].split()[1]
       
       retList.append(InstrDisas(iform, asm, '0x' + opcode, regOperands, memOperands, attributes))
    
