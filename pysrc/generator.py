@@ -163,7 +163,7 @@ def getAllRegisterNamesForOperand(operand, agi, mask, EOSZ=None, rex=None):
          return []
       if mask and o == 'K0':
          return []
-      if 'STACKPUSH' in o or 'STACKPOP' in o:
+      if 'STACK' in o:
          o = 'RSP'
       return [o]
 
@@ -620,7 +620,11 @@ def generateXMLFile(agi):
                               XMLOperand.attrib['opmask'] = '1'
                            
                            if maskop and not zeroing and len(XMLInstr.findall('operand')) == 1:
-                              XMLOperand.attrib['r'] = '1'                                 
+                              XMLOperand.attrib['r'] = '1'
+                           
+                           if operand.bits and 'STACK' in operand.bits.upper():
+                              XMLOperand.attrib['r'] = '1'
+                              XMLOperand.attrib['w'] = '1'
                            
                            register_names = getAllRegisterNamesForOperand(operand, agi, maskop, eosz, rex) 
                            XMLOperand.text = ','.join(register_names)
