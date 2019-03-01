@@ -39,7 +39,7 @@ def parseXedOutput(output, useIACAMarkers=False):
       tokensList = lines[0][re.match("\S* \S* ", lines[0]).end():].split(', ')
       tokens = {s[0]:(s[1] if len(s)>1 else '1') for x in tokensList for s in [x.split(':')]}
       
-      memOperands = {k:v for k, v in tokens.items() if re.match('MEM\d', k)}
+      memOperands = {k:v for k, v in tokens.items() if re.match('MEM\d|AGEN', k)}
       regOperands = {k:v for k, v in tokens.items() if re.match('REG\d', k)}
       
       attributes = {k:v for k, v in tokens.items() if k in allAttributes}
