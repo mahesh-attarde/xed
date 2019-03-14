@@ -402,7 +402,7 @@ def generateXMLFile(agi):
 
       if ii.iform_enum in ['SHL_MEMb_IMMb_C0r6', 'SHL_GPR8_IMMb_C0r6', 'SHL_MEMv_IMMb_C1r6', 'SHL_GPRv_IMMb_C1r6', 'SHL_MEMb_ONE_D0r6', 'SHL_GPR8_ONE_D0r6',
                            'SHL_GPRv_ONE_D1r6', 'SHL_MEMv_ONE_D1r6', 'SHL_MEMb_CL_D2r6', 'SHL_GPR8_CL_D2r6', 'SHL_MEMv_CL_D3r6', 'TEST_MEMb_IMMb_F6r1',
-                           'SHL_GPRv_CL_D3r6', 'TEST_GPR8_IMMb_F6r1', 'TEST_MEMv_IMMz_F7r1', 'TEST_GPRv_IMMz_F7r1', 'PREFETCHW_0F0Dr3', 'MOVQ_MEMq_XMMq_0FD6']:
+                           'SHL_GPRv_CL_D3r6', 'TEST_GPR8_IMMb_F6r1', 'TEST_MEMv_IMMz_F7r1', 'TEST_GPRv_IMMz_F7r1', 'PREFETCHW_0F0Dr3']:
          # no information in the manual on these encodings
          continue
 
