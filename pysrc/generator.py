@@ -125,7 +125,7 @@ def isInconsistent(bit, token, value):
    return False
 
 
-def getAllRegisterNamesForOperand(operand, agi, mask, EOSZ=None, rex=None):
+def getAllRegisterNamesForOperand(operand, agi, mask, multireg, EOSZ=None, rex=None):
    if operand.type == 'nt_lookup_fn':
       o = operand.lookupfn_name
 
@@ -151,7 +151,7 @@ def getAllRegisterNamesForOperand(operand, agi, mask, EOSZ=None, rex=None):
 
          if not admissibleRule: continue
 
-         returnList.extend(getAllRegisterNamesForOperand(rule.operands[0], agi, mask, EOSZ, rex))
+         returnList.extend(getAllRegisterNamesForOperand(rule.operands[0], agi, mask, multireg, EOSZ, rex))
       return returnList
    elif operand.type == 'reg':
       o = operand.bits.upper()
@@ -165,6 +165,9 @@ def getAllRegisterNamesForOperand(operand, agi, mask, EOSZ=None, rex=None):
          return []
       if 'STACK' in o:
          o = 'RSP'
+      if multireg:
+         if int(re.sub('\D', '', o)) % multireg:
+            return []
       return [o]
 
 
@@ -634,7 +637,7 @@ def generateXMLFile(agi):
                                  XMLOperand.attrib['r'] = '1'
                                  XMLOperand.attrib['w'] = '1'
 
-                              register_names = getAllRegisterNamesForOperand(operand, agi, maskop, eosz, rex)
+                              register_names = getAllRegisterNamesForOperand(operand, agi, maskop, operand.multireg, eosz, rex)
                               XMLOperand.text = ','.join(register_names)
 
                               width = None
@@ -655,6 +658,9 @@ def generateXMLFile(agi):
 
                               if operand.xtype and not operand.xtype == 'INVALID' and not XMLOperand.text in ['RSP', 'RIP']:
                                  XMLOperand.attrib['xtype'] = operand.xtype
+
+                              if operand.multireg:
+                                 XMLOperand.attrib['multireg'] = str(operand.multireg)
                            elif operand.type == 'imm_const':
                               o = operand.name.upper()
                               o=re.sub('IMM[01]','IMM',o)
@@ -691,11 +697,11 @@ def generateXMLFile(agi):
                                  for operand2 in ii.operands:
                                     if operand.name[-1] != operand2.name[-1]: continue
                                     if 'BASE' in operand2.name:
-                                       XMLOperand.attrib['base'] = getAllRegisterNamesForOperand(operand2, agi, False, eosz, rex)[-1]
+                                       XMLOperand.attrib['base'] = getAllRegisterNamesForOperand(operand2, agi, False, 0, eosz, rex)[-1]
                                     if 'SEG' in operand2.name:
                                        XMLOperand.attrib['seg'] = operand2.lookupfn_name.split('_')[1][0:2]
                                     if 'INDEX' in operand2.name:
-                                       XMLOperand.attrib['index'] = getAllRegisterNamesForOperand(operand2, agi, False, eosz, rex)[-1]
+                                       XMLOperand.attrib['index'] = getAllRegisterNamesForOperand(operand2, agi, False, 0, eosz, rex)[-1]
 
                                  memoryPrefix = getMemoryPrefix(width, ii)
                                  if memoryPrefix:
