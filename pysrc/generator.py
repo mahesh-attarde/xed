@@ -429,7 +429,7 @@ def generateXMLFile(agi):
             requiresRexW = True
 
       # EVEX encoded instructions for which there is a non-EVEX encoded instruction with the same iclass
-      requiresEvexPrefix = ('EVEX' in ii.extension and not 'ZMM' in ii.iform_enum and
+      requiresEvexPrefix = (ii.is_evex() and not 'ZMM' in ii.iform_enum and
                             any(ext for ext, icl in extensionToIclassesDict.items() if ii.extension != ext and ii.iclass in icl)) or ii.iclass == 'VPEXTRW_C5'
 
       modeSet = findPossibleValuesForToken(ii.ipattern.bits, 'MODE', {}, agi)
@@ -518,6 +518,10 @@ def generateXMLFile(agi):
                            XMLInstr.attrib['eosz'] = str(eosz)
                         if maskop:
                            XMLInstr.attrib['mask'] = str(int(maskop))
+                        if ii.is_vex():
+                           XMLInstr.attrib['vex'] = '1'
+                        if ii.is_evex():
+                           XMLInstr.attrib['evex'] = '1'
 
                         stringSuffix = ''
                         if 'REP' in ii.iclass:
@@ -1841,6 +1845,18 @@ class instruction_info_t(partitionable_info_t):
             self.add_attribute('STACKPOP%d' % (memop_index))
             return
       die("Did not find stack push/pop operand")
+
+   def is_vex(self):
+      for bit in self.ipattern.bits:
+         if bit.btype == 'operand' and  bit.token == 'VEXVALID' and bit.requirement == 1 and bit.test == 'eq':
+            return True
+      return False
+
+   def is_evex(self):
+      for bit in self.ipattern.bits: # bit_info_t
+         if bit.btype == 'operand' and bit.token == 'VEXVALID' and bit.requirement == 2 and bit.test == 'eq':
+            return True
+      return False
 
    def dump_structured(self):
        """Return a list of strings representing the instruction in a
