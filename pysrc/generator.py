@@ -627,6 +627,8 @@ def generateXMLFile(agi):
                               XMLOperand.attrib['r'] = '1'
                            if 'w' in operand.rw:
                               XMLOperand.attrib['w'] = '1'
+                           if 'cw' in operand.rw:
+                              XMLOperand.attrib['conditionalWrite'] = '1'
                            if operand.visibility == 'SUPPRESSED' or (operand.visibility == 'IMPLICIT' and ii.category in ['X87_ALU']):
                               XMLOperand.attrib['suppressed'] = '1'
                            elif operand.visibility == 'IMPLICIT':
