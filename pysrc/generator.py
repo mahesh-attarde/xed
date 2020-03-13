@@ -351,7 +351,8 @@ def getInstrString(XMLInstr, stringSuffix):
 
 def getMemoryPrefix(width, ii):
    if ii.category in ['GATHER', 'AVX2GATHER', 'SCATTER'] or ii.iclass in ['LAR', 'LSL', 'INVPCID', 'CALL_FAR', 'JMP_FAR', 'RET_FAR', 'LWPVAL', 'LWPINS',
-                                                                          'WRSSD', 'WRSSQ', 'WRUSSD', 'WRUSSQ', 'VPOPCNTD', 'MOVDIR64B', 'MOVDIRI']:
+                                                                          'WRSSD', 'WRSSQ', 'WRUSSD', 'WRUSSQ', 'VPOPCNTD', 'MOVDIR64B', 'MOVDIRI',
+                                                                          'PCMPESTRI64', 'PCMPESTRM64', 'VPCMPESTRI64', 'VPCMPESTRM64']:
       return None
    elif width == '8':
       return 'byte ptr'
@@ -402,7 +403,7 @@ def generateXMLFile(agi):
       if ii.comment and 'UNDOC' in ii.comment and not ii.iform_enum in ['FCOM_ST0_X87', 'FSTP_X87_ST0'] and not ii.iclass in ['LOOPE', 'LOOPNE']:
          continue
 
-      if ii.iclass in ['UD0', 'UD1', 'PREFETCH_RESERVED']:
+      if ii.iclass in ['UD0', 'UD1', 'PREFETCH_RESERVED', 'PCMPISTRI64', 'VPCMPISTRI64']:
          # no information in the manual on these instructions
          continue
 
@@ -451,8 +452,7 @@ def generateXMLFile(agi):
          if operand.name == 'AGEN':
             hasAGENOperand = True
 
-      if hasOperandSensitiveToEOSZ(ii.operands, agi, widths_list_dict) or 'REP' in ii.iclass or (ii.iclass in ['PCMPESTRI', 'PCMPESTRM', 'PCMPISTRI',
-                                                                                       'PCMPISTRI', 'VPCMPESTRI', 'VPCMPESTRM', 'VPCMPISTRI', 'VPCMPISTRI']):
+      if hasOperandSensitiveToEOSZ(ii.operands, agi, widths_list_dict) or 'REP' in ii.iclass:
          eoszSet = findPossibleValuesForToken(ii.ipattern.bits, 'EOSZ', {'MODE':[2], 'EASZ':[3]}, agi)
          if not eoszSet:
             vexvalidSet = findPossibleValuesForToken(ii.ipattern.bits, 'VEXVALID', {'MODE':[2], 'EASZ':[3]}, agi)
@@ -496,10 +496,6 @@ def generateXMLFile(agi):
                               continue
                         if eosz <= 2 and ii.iclass in ['MOVSXD']:
                            # not accepted by assembler (GNU and NASM)
-                           continue
-                        if eosz == 3 and ii.iform_enum in ['VPCMPESTRI_XMMdq_MEMdq_IMMb', 'VPCMPESTRM_XMMdq_MEMdq_IMMb', 'VPCMPISTRI_XMMdq_MEMdq_IMMb',
-                                                           'VPCMPISTRI_XMMdq_XMMdq_IMMb']:
-                           # there is no assembler code to emit these encodings
                            continue
                         if ii.iclass in ['MOVSX', 'MOVZX', 'CRC32'] and rex == False and eosz == 3:
                            continue
@@ -561,12 +557,14 @@ def generateXMLFile(agi):
                            XMLInstr.attrib['asm'] += 'W'
                            stringSuffix += '_W'
                         if eosz == 3:
-                           if (('REP' in ii.iclass and not ii.iclass[-1] == 'Q') or ii.iclass in ['PCMPESTRI', 'PCMPESTRM', 'PCMPISTRI', 'XBEGIN', 'XSTORE']):
+                           if (ii.iclass in ['XBEGIN', 'XSTORE']):
                               XMLInstr.attrib['asm'] = 'REX64 ' + XMLInstr.attrib['asm']
                               stringSuffix += '_REX64'
-                           elif ii.iclass in ['RET_FAR', 'VPCMPESTRI', 'VPCMPESTRM', 'VPCMPISTRI']:
+                           elif ii.iclass in ['RET_FAR']:
                               XMLInstr.attrib['asm'] += 'Q'
                               stringSuffix += '_Q'
+                        if ii.iclass in ['PCMPESTRI64', 'PCMPESTRM64', 'PCMPISTRI64', 'VPCMPESTRI64', 'VPCMPESTRM64', 'VPCMPISTRI64']:
+                           XMLInstr.attrib['asm'] += 'Q'
 
                         if requiresEvexPrefix and not maskop:
                            XMLInstr.attrib['asm'] = '{evex} ' + XMLInstr.attrib['asm']
