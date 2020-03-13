@@ -601,8 +601,11 @@ def generateXMLFile(agi):
                            XMLInstr.attrib['zeroing'] = '1'
                            stringSuffix += '_Z'
 
-                        if ii.attributes and 'LOCKED' in ii.attributes:
-                           XMLInstr.attrib['locked'] = '1'
+                        if ii.attributes:
+                           if 'LOCKED' in ii.attributes:
+                              XMLInstr.attrib['locked'] = '1'
+                           if 'MXCSR' in ii.attributes:
+                              XMLInstr.attrib['mxcsr'] = '1'
 
                         for operand in ii.operands:
                            if operand.internal:
