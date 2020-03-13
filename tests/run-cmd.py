@@ -51,10 +51,11 @@ import mbuild
 
 def write_file(fn,lines):
     print("[EMIT] %s" % (fn))
-    f = open(fn,"w")
+    # write the file in binary mode to prevent LF -> CR LF expansion on Windows
+    f = open(fn,"wb")
     if lines:
         for line in lines:
-            f.write(line)
+            f.write(line.replace('\r', '')) # gobble CR symbols if any
     f.close()
 
 
@@ -93,7 +94,8 @@ def make_bulk_tests(env):
     for bulk_test_file in  env['bulk_tests']:
         print("[READING BULK TESTS] %s" % (bulk_test_file))
         tests = open(bulk_test_file,'r').readlines()
-        tests = [ x.strip() for x in tests]
+        tests = [ re.sub(r"#.*",'',x) for x in tests] # remove comments
+        tests = [ x.strip() for x in tests]  # remove leading/trailing whitespace, newlines
         for test in tests:
             if test:
                 si = mbuild.join(env['otests'],"test-%05d" % (i))
@@ -143,6 +145,7 @@ def _prep_stream(strm,name):
         strm.pop()
     for line in strm:
         print("[{}] {} {}".format(name,len(line),line))
+    return strm
 
 def one_test(env,test_dir):
 
@@ -158,11 +161,9 @@ def one_test(env,test_dir):
     (retcode, stdout,stderr) = mbuild.run_command(cmd2,separate_stderr=True)
     print("Retcode %s" % (str(retcode)))
     if stdout:
-        _prep_stream(stdout,"STDOUT")
+        stdout = _prep_stream(stdout,"STDOUT")
     if stderr:
-        _prep_stream(stderr,"STDERR")
-
-
+        stderr = _prep_stream(stderr,"STDERR")
 
     ret_match = compare_file(os.path.join(test_dir,"retcode.reference"), [ str(retcode) ])
     stdout_match = compare_file(os.path.join(test_dir,"stdout.reference"), stdout)
