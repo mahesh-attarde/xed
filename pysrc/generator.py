@@ -640,7 +640,7 @@ def generateXMLFile(agi):
                               if maskop and usesMaskopReg:
                                  XMLOperand.attrib['opmask'] = '1'
 
-                              if maskop and not zeroing and len(XMLInstr.findall('operand')) == 1:
+                              if maskop and not zeroing and not operand.oc2 == 'mskw' and len(XMLInstr.findall('operand')) == 1:
                                  XMLOperand.attrib['r'] = '1'
 
                               if operand.bits and 'STACK' in operand.bits.upper():
