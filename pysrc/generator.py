@@ -417,7 +417,7 @@ def generateXMLFile(agi):
          # no information in the manual on these variants
          continue
 
-      if (ii.iform_enum in ['ENCLV', 'MOVQ_XMMdq_MEMq_0F6E', 'MOVQ_MEMq_XMMq_0F7E', 'MOVQ_MMXq_MEMq_0F6E', 'MOVQ_MEMq_MMXq_0F7E', 'VMOVQ_XMMdq_MEMq_6E',
+      if (ii.iform_enum in ['ENCLV', 'INT1', 'MOVQ_XMMdq_MEMq_0F6E', 'MOVQ_MEMq_XMMq_0F7E', 'MOVQ_MMXq_MEMq_0F6E', 'MOVQ_MEMq_MMXq_0F7E', 'VMOVQ_XMMdq_MEMq_6E',
                            'VMOVQ_MEMq_XMMq_7E', 'VPEXTRW_GPR32d_XMMdq_IMMb_15', 'PUSH_GPRv_FFr6', 'MOV_GPR8_IMMb_C6r0', 'POP_GPRv_8F',
                            'PEXTRW_SSE4_GPR32_XMMdq_IMMb'] or (ii.iform_enum == 'VPEXTRW_GPR32u16_XMMu16_IMM8_AVX512' and ii.iclass == 'VPEXTRW')):
          # there is no assembler code to emit these encodings
