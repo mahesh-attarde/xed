@@ -17,6 +17,9 @@
 #  limitations under the License.
 #  
 #END_LEGAL
+
+# This is the "fast" encoder generator known as "enc2".
+
 from __future__ import print_function
 import os
 import sys
@@ -37,7 +40,6 @@ import enc2test
 import enc2argcheck
 
 from enc2common import *
-
 
 def get_fname(depth=1): # default is current caller
     #return sys._getframe(depth).f_code.co_name
@@ -534,6 +536,8 @@ def two_scalable_regs(ii): # allow optional imm8, immz, allow one implicit GPR
     return n==2 and i <= 1 and implicit <= 1
 def op_implicit(op):
     return op.visibility == 'IMPLICIT'
+def op_implicit_or_suppressed(op):
+    return op.visibility in ['IMPLICIT','SUPPRESSED']
     
 def one_x87_reg(ii):
     n = 0
@@ -628,6 +632,8 @@ def one_nonmem_operand(ii):
     for op in _gen_opnds(ii):
         if op_mem(op):
             return False
+        if op_implicit_or_suppressed(op): # for RCL/ROR etc with implicit imm8
+            continue
         n = n + 1
     return n == 1
 
@@ -655,8 +661,11 @@ def op_immv(op):
 def op_imm8(op):
     if op.name == 'IMM0':
         if op.oc2 == 'b':
+            if op_implicit_or_suppressed(op):
+                return False
             return True
     return False
+
 def op_imm16(op):
     if op.name == 'IMM0':
         if op.oc2 == 'w':
@@ -741,6 +750,10 @@ def emit_required_legacy_map_escapes(ii,fo):
     elif ii.map == 3:
         fo.add_code_eol('emit(r,0x0F)', 'escape map 3')
         fo.add_code_eol('emit(r,0x3A)', 'escape map 3')
+    elif ii.map == 'AMD3DNOW':
+        fo.add_code_eol('emit(r,0x0F)', 'escape map 3dNOW')
+        fo.add_code_eol('emit(r,0x0F)', 'escape map 3dNOW')
+
         
 def get_implicit_operand_name(op):
     if op_implicit(op):
@@ -792,6 +805,9 @@ def emit_vex_prefix(env, ii, fo, register_only=False):
         fo.add_code_eol('emit_vex_c4(r)')
     
 def emit_opcode(ii,fo):
+    if ii.amd_3dnow_opcode:
+        return # handled later. See add_enc_func()
+
     opcode = "0x{:02X}".format(ii.opcode_base10)
     fo.add_code_eol('emit(r,{})'.format(opcode),
                     'opcode')
@@ -1120,8 +1136,12 @@ def create_legacy_one_scalable_gpr(env,ii,osz_values,oc2):
                     ii.encoder_skipped = True
                     return
             else:
-                _dump_fields(ii)
-                die("SHOULD NOT HAVE A VALUE FOR  PARTIAL OPCODES HERE {} / {}".format(ii.iclass, ii.iform))
+                # we have soem XCHG opcodes encoded as partia register
+                # instructions but have fixed RM fields.
+                fo.add_code_eol('set_rm(r,{})'.format(ii.rm_required))
+
+                #dump_fields(ii)
+                #die("SHOULD NOT HAVE A VALUE FOR  PARTIAL OPCODES HERE {} / {}".format(ii.iclass, ii.iform))
 
         emit_rex(env,fo,rexw_forced)
         emit_required_legacy_map_escapes(ii,fo)
@@ -2064,36 +2084,42 @@ def create_legacy_one_x87_reg(env,ii):
 
     
 def gpr8_imm8(ii):
+    reg,imm=0,0
     for i,op in enumerate(_gen_opnds(ii)):
         if i == 0:
             if op.name == 'REG0' and op_luf_start(op,'GPR8'): 
-                continue
+                reg = reg + 1
             else:
                 return False
         elif i == 1:
             if op.name == 'IMM0' and op.oc2 == 'b':
-                continue
+                if op_implicit_or_suppressed(op):
+                    return False
+                imm = imm + 1
             else:
                 return False
         else:
             return False
-    return True
+    return reg == 1 and imm == 1
             
 def gprv_imm8(ii):
+    reg,imm=0,0
     for i,op in enumerate(_gen_opnds(ii)):
         if i == 0:
             if op.name == 'REG0' and  op_luf_start(op,'GPRv'):
-                continue
+                reg = reg + 1
             else:
                 return False
         elif i == 1:
             if op.name == 'IMM0' and op.oc2 == 'b':
-                continue
+                if op_implicit_or_suppressed(op):
+                    return False
+                imm = imm + 1
             else:
                 return False
         else:
             return False
-    return True
+    return reg == 1 and imm == 1
 
 def gprv_immz(ii):
     for i,op in enumerate(_gen_opnds(ii)):
@@ -2542,7 +2568,7 @@ def create_legacy_one_gpr_reg_one_mem_fixed(env,ii):
             width = get_reg_width(op)
             break
     if width == None:
-        _dump_fields(ii)
+        dump_fields(ii)
         die("Bad search for width")
     
     widths = [width]
@@ -2610,7 +2636,7 @@ def create_legacy_one_gpr_reg_one_mem_scalable(env,ii):
         opnd_types_org = get_opnd_types(env,ii, osz_translate(width))        
         opnd_types  = copy.copy(opnd_types_org)
         if ii.has_immz:
-            immw = 16 if width == 16 else 32
+            immw = 16 if (width == 16 or width == 'w') else 32
             
         memaddrsig = get_memsig(env.asz, use_index, dispsz)
         fname = "{}_{}_{}_{}".format(enc_fn_prefix,
@@ -3916,10 +3942,16 @@ def create_vex_regs_mem(env,ii):
                 fo.add_code_eol('set_rm(r,{})'.format(ii.rm_required))
                 
         if var_se:
-            fo.add_code_eol('enc_imm8_reg_{}(r,{})'.format(sz_se, var_se))
+            if immw:
+                immw=0
+                fo.add_code_eol('enc_imm8_reg_{}_and_imm(r,{},{})'.format(sz_se, var_se, var_imm8))
+            else:
+                fo.add_code_eol('enc_imm8_reg_{}(r,{})'.format(sz_se, var_se))
 
         encode_mem_operand(env, ii, fo, use_index, dispsz)
         emit_vex_prefix(env, ii,fo,register_only=False)
+        
+
         finish_memop(env, ii, fo, dispsz, immw,  space='vex')
         if var_se:
             fo.add_code_eol('emit_se_imm8_reg(r)')
@@ -4950,7 +4982,7 @@ def spew(ii):
     s.append(hex(ii.opcode_base10))
     s.append(str(ii.map))
     #dbg('XA: {}'.format(" ".join(s)))
-    # _dump_fields(ii)
+    # dump_fields(ii)
 
     modes = ['m16','m32','m64']
     if ii.mode_restriction == 'unspecified':
@@ -5175,7 +5207,9 @@ def work():
                                      args.instructions_filename,
                                      args.widths_filename,
                                      args.element_types_filename,
-                                     args.cpuid_filename)
+                                     args.cpuid_filename,
+                                     args.map_descriptions)
+
 
     width_info_dict = xeddb.get_width_info_dict()
     for k in width_info_dict.keys():
@@ -5217,8 +5251,7 @@ def work():
 
 
     output_file_emitters = []
-
-
+        
     
     #extra_headers =  ['xed/xed-encode-direct.h']
     for mode in args.modes:

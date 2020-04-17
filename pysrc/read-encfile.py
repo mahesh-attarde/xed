@@ -930,7 +930,7 @@ class rule_t(object):
         has_otherwise_rule = self.has_otherwise_rule()
         
         #complicated_nt are nonterminals that can not be auto generated using 
-        #hash function and look uptables due to their complexity
+        #hash function and lookup tables due to their complexity
         #so we generete them in the old if statement structure 
         complicated_nt = nt_func_gen.get_complicated_nt()        
         
@@ -1078,8 +1078,9 @@ class iform_t(object):
         self.enc_actions = enc_actions  # [ blot_t ]
         self.modal_patterns = modal_patterns # [ string ]
 
-        #the emit phase action pattern
-        self.emit_actions = None
+        # the emit phase action pattern is a comma separated string of
+        # strings describing emit activity, created by ins_emit.py.
+        self.emit_actions = None 
         
         #the FB actions pattern
         self.fb_ptrn = None
@@ -1251,15 +1252,6 @@ class iform_t(object):
 def key_rule_tuple(x):
     (a1,a2) = x
     return a1
-
-def rule_tuple_sort(a,b): # FIXME:2017-06-10:PY3 port, no longer used
-    (a1,a2) = a
-    (b1,b2) = b
-    if a1 > b1:
-        return 1
-    elif a1 < b1:
-        return -1
-    return 0
 
 class nonterminal_t(object):
     def __init__(self, name, rettype=None):
@@ -2005,7 +1997,22 @@ class encoder_configuration_t(object):
             die("Could not process decode pattern %s" % s)
         
         return (decode_patterns, field_bindings)
+
+    def force_vl_encoder_output(self, iclass, operand_str, pattern_str):
+        """Return true if we should treat VL as an encoder_output (EO)"""
+        if 'VEXVALID=1' in pattern_str or 'VEXVALID=2' in pattern_str:
+            if 'XMM' in operand_str or 'YMM' in operand_str or 'ZMM' in operand_str:
+                return False
+            if ':vv' in operand_str:
+                return False
+            if 'VL=' in pattern_str:
+                #print("SETTING FORCE_VL_ENCODER_OUTPUT FOR {}".format(iclass))
+                #print("\t PATTERN:  {}".format(pattern_str))
+                #print("\t OPERANDS: {}".format(operand_str))
+                return True
+        return False
             
+        
     def parse_one_decode_rule(self, iclass, operand_str, pattern_str):
         """Read the decoder rule from the main ISA file and package it
         up for encoding. Flipping things around as necessary.
@@ -2053,12 +2060,19 @@ class encoder_configuration_t(object):
             p_short = rhs_pattern.sub('', p)  # grab the lhs
 
             # special cases
-            if (p_short in storage_fields and 
-                     storage_fields[p_short].encoder_input):
-                if voperand():
-                    msgb("MODAL PATTERN", p_short)
-                modal_patterns.append(p)
-                continue
+
+            # VL is generally an encoder input, except in some cases
+            # (VZERO*, BMI, KMASKS, etc.)
+            do_encoder_input_check = True
+            if p_short in ['VL'] and self.force_vl_encoder_output(iclass, operand_str, pattern_str):
+                do_encoder_input_check = False
+                
+            if do_encoder_input_check:
+                if p_short in storage_fields and storage_fields[p_short].encoder_input:
+                    if voperand():
+                        msgb("MODAL PATTERN", p_short)
+                    modal_patterns.append(p)
+                    continue
 
             if p_short in storage_fields and p == 'BCRC=1':
                 # FIXME: 2016-01-28: MJC: HACK TO ENCODE ROUNDC/SAE CONSTRAINTS
@@ -2482,14 +2496,14 @@ class encoder_configuration_t(object):
                     cond1 = "xed_encode_order_limit[%d]==xes->_n_operand_order"
                     cond1 = cond1 % (iform.operand_order)
                 if nopnd == None:
-                    cond2 = "memcmp(xed_encode_order[%d], "+\
-                            "xes->_operand_order, "+\
-                            "sizeof(%s)*xed_encode_order_limit[%d])==0"
+                    cond2 = ("memcmp(xed_encode_order[%d], " +
+                            "xes->_operand_order, " +
+                            "sizeof(%s)*xed_encode_order_limit[%d])==0")
                     cond2 = cond2 % (iform.operand_order, memcmp_type, 
                                      iform.operand_order)
                 else:
-                    cond2 = "memcmp(xed_encode_order[%d], "+\
-                            "xes->_operand_order, sizeof(%s)*%d)==0"
+                    cond2 = ("memcmp(xed_encode_order[%d], " +
+                            "xes->_operand_order, sizeof(%s)*%d)==0")
                     cond2 = cond2 % (iform.operand_order, memcmp_type, nopnd)
 
                 fo.add_code("if (%s && %s) {" % (cond1, cond2))
@@ -2998,8 +3012,8 @@ class encoder_configuration_t(object):
         fe.add_header('xed-ild.h')
         fe.start()
         
-        ptrn = "/*(%4d)%20s*/  {%4d, %4d, %4s," +\
-                " XED_STATIC_CAST(xed_uint8_t,%15s), %4d}"
+        ptrn = ("/*(%4d)%20s*/  {%4d, %4d, %4s," +
+                " XED_STATIC_CAST(xed_uint8_t,%15s), %4d}")
         iform_definitions = []
         for iform in self.all_iforms:#iforms:
             iform_init = ptrn % (iform.rule.iform_id,

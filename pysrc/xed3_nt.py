@@ -16,82 +16,36 @@
 #  
 #END_LEGAL
 
+# FIXME: 2019-10-21 rename this file to something like "gen_dyn_dec.py"
+
+# dynamic decode for:
+#   (a) part 1 (for OSZ/ASZ NTs),
+#   (b) part 2 (for NTs within in instr patterns), and
+#   (c) operands (mostly register NTLUFs).
+
+import os
+
 import ildutil
 import ild_nt
 import ild_cdict
 import mbuild
 import codegen
-import os
 import ild_codegen
 import operand_storage
 import verbosity
 import tup2int
 
-_xed3_ops_type = 'xed3_operands_struct_t*'
-_xed3_ops_header = 'xed3-operands-struct.h'
-_key_ctype = 'xed_uint32_t'
-_xed3_err_op = 'error'
-_xed3_gen_error = 'XED_ERROR_GENERAL_ERROR'
+_key_ctype         = 'xed_uint32_t'
+_xed3_err_op       = 'error'
+_xed3_gen_error    = 'XED_ERROR_GENERAL_ERROR'
 _xed_reg_error_val = 'XED_ERROR_BAD_REGISTER'
-_xed_no_err_val = 'XED_ERROR_NONE'
-_xed_op_type = 'xed_operand_values_t'
-_xed3_opstruct_type = 'xed3_operands_struct_t'
+_xed_no_err_val    = 'XED_ERROR_NONE'
+_xed_op_type       = 'xed_operand_values_t'
+
 
 def _vlog(f,s):
     if verbosity.vcapture():
         f.write(s)
-
-#FIXME: this is not used currently, but it would be nice
-#to have a special error enum with more specific error reasons
-#instead of just XED_ERROR_GENERAL_ERROR
-#for example for each NT we can create a separate error value
-def _nt_2_xed3_err_enum(nt_name):
-    return 'XED3_ERROR_%s' % nt_name.upper()
-
-#This is not used currently.
-#I was going to use it for decoding the operands: for each
-#operand enum value call the corresponding NT function,
-#but it turned out to be better to generate chain capture functions 
-#for each operands combination
-def dump_nt_enum_2_capture_fptr(agi, fname):
-    """Dump mapping nt_enum -> nt_capture_fptr
-    """
-    xeddir = os.path.abspath(agi.common.options.xeddir)
-    gendir = mbuild.join(agi.common.options.gendir,'include-private')
-    
-    h_file = codegen.xed_file_emitter_t(xeddir,gendir,
-                                fname, shell_file=False, 
-                                is_private=True)
-    h_file.add_header('xed-lookup-functions.h')
-    h_file.add_header(_xed3_nt_capture_header)
-    h_file.start()
-    lu_name = 'xed3_nt_2_capture'
-    
-    xed3_capture_f_t = 'xed3_capture_function_t'
-    
-    fptr_typedef = 'typedef void(*%s)(%s*);' % (xed3_capture_f_t,
-                                                ildutil.xed3_decoded_inst_t)
-    
-    fptr_typedef = 'typedef void(*%s)(xed_decoded_inst_t*);' % xed3_capture_f_t
-    
-    h_file.add_code(fptr_typedef)
-    
-    h_file.add_code(('static %s ' % xed3_capture_f_t) +\
-                  '%s[XED_NONTERMINAL_LAST] = {' % lu_name)
-    nonterminals = list(agi.nonterminal_dict.keys())
-    
-    invalid_line = '/*XED_NONTERMINAL_INVALID*/ (%s)0,' % xed3_capture_f_t
-    h_file.add_code(invalid_line)
-    for nt_name in list(agi.xed3_nt_enum_val_map.values()):
-        enum_val = 'XED_NONTERMINAL_%s' % nt_name.upper()
-        if _skip_nt(nt_name):
-            fn = '0'
-        else:
-            fn = get_xed3_nt_capture_fn(nt_name)
-        h_file.add_code('/*%s*/ (%s)%s,'% (enum_val, xed3_capture_f_t, fn))
-    h_file.add_code('};')
-    h_file.close()
-
 
 def get_ii_constraints(ii, state_space, constraints):
     """
@@ -156,23 +110,15 @@ def _gen_cdict(agi, nt_name, all_state_space):
     return united_dict
 
 
-def get_xed3_member_name(xed2_opname):
-    """
-    This is not used currently.
-    When we have a struct for operands instead of _operands array
-    this can be used to get struct member name from operand
-    """
-    return xed2_opname.lower()
-
 _xed3_capture_fn_pfx = 'xed3_capture'
 
-def get_xed3_nt_capture_fn(nt_name):
+def _get_xed3_nt_capture_fn(nt_name):
     """
     Return a xed3 capture function name for a given NT name.
     """
     return '%s_nt_%s' % (_xed3_capture_fn_pfx, nt_name)
 
-def get_xed3_capture_chain_fn(nt_names, is_ntluf=False):
+def _get_xed3_capture_chain_fn(nt_names, is_ntluf=False):
     """
     Return a xed3 chain capture function name from a given list of
     NT names.
@@ -231,7 +177,7 @@ def _is_error_rule(rule):
     return False
 
 def _add_capture_nt_call(fo, nt_name, inst='d', indent=0):
-    capture_fn = get_xed3_nt_capture_fn(nt_name)
+    capture_fn = _get_xed3_nt_capture_fn(nt_name)
     indent = '    ' * indent
     fo.add_code_eol('%s%s(%s)' % (indent, capture_fn, inst))
 
@@ -349,7 +295,6 @@ def _add_switchcase_lines(fo,
     else:
         #FIXME: temporary using general error, later
         #define more specific error enum
-        #errval = _nt_2_xed3_err_enum(nt_name)
         errval = 'XED_ERROR_GENERAL_ERROR'
         _add_op_assign_stmt(fo, _xed3_err_op, errval, 
                             inst, indent=1)
@@ -357,19 +302,19 @@ def _add_switchcase_lines(fo,
     fo.add_code('}')
     
 
-def gen_capture_fo(agi, nt_name, all_ops_widths):
+def _gen_capture_fo(agi, nt_name, all_ops_widths):
     """
     Generate xed3 capturing function for a given NT name.
     """
     gi = agi.generator_dict[nt_name]
     cdict = gi.xed3_cdict
-    fname = get_xed3_nt_capture_fn(nt_name)
+    fname = _get_xed3_nt_capture_fn(nt_name)
     inst = 'd'
     keystr = 'key'
-    fo = fo = codegen.function_object_t(fname,
-                                       return_type='void', 
-                                       static=True, 
-                                       inline=True)
+    fo = codegen.function_object_t(fname,
+                                   return_type='void', 
+                                   static=True, 
+                                   inline=True)
     fo.add_arg(ildutil.xed3_decoded_inst_t + '* %s' % inst)
     if len(cdict.cnames) > 0:
         _add_cgen_key_lines(fo, nt_name, gi, all_ops_widths, keystr, inst)
@@ -380,31 +325,6 @@ def gen_capture_fo(agi, nt_name, all_ops_widths):
         _add_nt_rhs_assignments(fo, nt_name, gi, rule)
     return fo
     
-#FIXME: not used currently.
-#Will be nice to use it and have different types for different members,
-#especially for registers. 9debugging and overall tidy code)
-def _gen_xed3_op_struct(agi, hfn):
-    """
-    Dump xed3_oprands_struct_t definition
-    """
-    xeddir = os.path.abspath(agi.common.options.xeddir)
-    gendir = mbuild.join(agi.common.options.gendir)
-    
-    h_file = codegen.xed_file_emitter_t(xeddir,gendir,
-                                hfn, shell_file=False, 
-                                is_private=False)
-    h_file.add_header('xed-operand-storage.h')
-    h_file.start()
-    
-    
-    typedef_s = 'typedef struct xed3_operands_struct_s {' 
-    h_file.add_code(typedef_s)
-    
-    for op_name in agi.xed3_operand_names:
-        h_file.add_code('%s %s;'% (_xed_op_type, op_name.lower()))
-    h_file.add_code('} %s;' %_xed3_opstruct_type)
-    h_file.close()
-
 def _get_op_nt_names_from_ii(ii):
     nt_names = []
     for op in ii.operands:
@@ -443,18 +363,18 @@ def _gen_ntluf_capture_chain_fo(nt_names, ii):
     is that this function creates chain capturing functions for
     operand decoding - assigns the REG[0,1] operands, etc.
     """
-    fname = get_xed3_capture_chain_fn(nt_names, is_ntluf=True)
+    fname = _get_xed3_capture_chain_fn(nt_names, is_ntluf=True)
     inst = 'd'
-    fo = fo = codegen.function_object_t(fname,
-                                       return_type=_xed3_chain_return_t, 
-                                       static=True, 
-                                       inline=True)
+    fo = codegen.function_object_t(fname,
+                                   return_type=_xed3_chain_return_t, 
+                                   static=True, 
+                                   inline=True)
     fo.add_arg(ildutil.xed3_decoded_inst_t + '* %s' % inst)
     
     for op in ii.operands:
         if op.type == 'nt_lookup_fn':
             nt_name = op.lookupfn_name
-            capture_fn = get_xed3_nt_capture_fn(nt_name)
+            capture_fn = _get_xed3_nt_capture_fn(nt_name)
             capture_stmt = '%s(%s)' % (capture_fn, inst)
             fo.add_code_eol(capture_stmt)
             #if we have NTLUF functions, we need to assign OUTREG
@@ -487,16 +407,16 @@ def _gen_capture_chain_fo(nt_names, fname=None):
     capture for a given pattern with NTs (nt_names) in it.
     """
     if not fname:
-        fname = get_xed3_capture_chain_fn(nt_names)
+        fname = _get_xed3_capture_chain_fn(nt_names)
     inst = 'd'
-    fo = fo = codegen.function_object_t(fname,
-                                       return_type=_xed3_chain_return_t, 
-                                       static=True, 
-                                       inline=True)
+    fo = codegen.function_object_t(fname,
+                                   return_type=_xed3_chain_return_t, 
+                                   static=True, 
+                                   inline=True)
     fo.add_arg(ildutil.xed3_decoded_inst_t + '* %s' % inst)
     
     for name in nt_names:
-        capture_fn = get_xed3_nt_capture_fn(name)
+        capture_fn = _get_xed3_nt_capture_fn(name)
         capture_stmt = '%s(%s)' % (capture_fn, inst)
         fo.add_code_eol(capture_stmt)
         #now check if we have errors in current NT
@@ -509,14 +429,14 @@ def _gen_capture_chain_fo(nt_names, fname=None):
     fo.add_code_eol('return %s' % _xed_no_err_val)
     return fo
 
-_xed3_chain_header = 'xed3-chain-capture.h'
-_xed3_op_chain_header = 'xed3-op-chain-capture.h'
-_xed3_chain_lu_header = 'xed3-chain-capture-lu.h'
-_xed3_op_chain_lu_header = 'xed3-op-chain-capture-lu.h'
-_xed3_nt_capture_header = 'xed3-nt-capture.h'
-_xed3_capture_lu_header = 'xed3-nt-capture-lu.h'
-_xed3_empty_capture_func = 'xed3_capture_nt_nop'
-_xed3_chain_return_t = 'xed_error_enum_t'
+_xed3_chain_header         = 'xed3-chain-capture.h'
+_xed3_op_chain_header      = 'xed3-op-chain-capture.h'
+_xed3_chain_lu_header      = 'xed3-chain-capture-lu.h'
+_xed3_op_chain_lu_header   = 'xed3-op-chain-capture-lu.h'
+_xed3_nt_capture_header    = 'xed3-nt-capture.h'
+_xed3_capture_lu_header    = 'xed3-nt-capture-lu.h'
+_xed3_empty_capture_func   = 'xed3_capture_nt_nop'
+_xed3_chain_return_t       = 'xed_error_enum_t'
 _xed3_dynamic_part1_header = 'xed3-dynamic-part1-capture.h'
     
 
@@ -530,10 +450,10 @@ def _gen_empty_capture_fo(is_ntluf=False):
         fname = '%s_ntluf' % _xed3_empty_capture_func
     else:
         fname = _xed3_empty_capture_func
-    fo = fo = codegen.function_object_t(fname,
-                                       return_type=_xed3_chain_return_t, 
-                                       static=True, 
-                                       inline=True)
+    fo = codegen.function_object_t(fname,
+                                   return_type=_xed3_chain_return_t, 
+                                   static=True, 
+                                   inline=True)
     fo.add_arg(ildutil.xed3_decoded_inst_t + '* %s' % inst)
     fo.add_code_eol('(void)%s' % inst)
     fo.add_code_eol('return %s' % _xed_no_err_val)
@@ -556,7 +476,7 @@ def _dump_op_capture_chain_fo_lu(agi, patterns):
             #if no NTs we use empty capturing function
             fn = nop_fo.function_name
         else:
-            fn = get_xed3_capture_chain_fn(nt_names, is_ntluf=True)
+            fn = _get_xed3_capture_chain_fn(nt_names, is_ntluf=True)
         if fn not in fn_2_fo:
             fo = _gen_ntluf_capture_chain_fo(nt_names, ii)
             fn_2_fo[fn] = fo
@@ -589,9 +509,9 @@ def _dump_op_capture_chain_fo_lu(agi, patterns):
                                               ildutil.xed3_decoded_inst_t)
     
     h_file.add_code(fptr_typedef)
-    
-    h_file.add_code(('static %s ' % xed3_op_chain_f_t) +\
-                  '%s[%s] = {' % (lu_name, lu_size))
+    h_file.add_code('static {} {}[{}] = {{'.format(xed3_op_chain_f_t,
+                                                   lu_name,
+                                                   lu_size))
     
     empty_line = '/*NO PATTERN*/ (%s)0,' % xed3_op_chain_f_t
 
@@ -625,7 +545,7 @@ def _dump_capture_chain_fo_lu(agi, patterns):
             #if no NTs we use empty capturing function
             fn = nop_fo.function_name
         else:
-            fn = get_xed3_capture_chain_fn(nt_names)
+            fn = _get_xed3_capture_chain_fn(nt_names)
         if fn not in fn_2_fo:
             fo = _gen_capture_chain_fo(nt_names)
             fn_2_fo[fn] = fo
@@ -659,8 +579,9 @@ def _dump_capture_chain_fo_lu(agi, patterns):
     
     h_file.add_code(fptr_typedef)
     
-    h_file.add_code(('static %s ' % xed3_chain_f_t) +\
-                  '%s[%s] = {' % (lu_name, lu_size))
+    h_file.add_code('static {} {}[{}] = {{'.format(xed3_chain_f_t,
+                                                   lu_name,
+                                                   lu_size))
     
     empty_line = '/*NO PATTERN*/ (%s)0,' % xed3_chain_f_t
 
@@ -701,8 +622,8 @@ def _skip_nt(nt_name):
     function for a given NT name.
     """
     return (nt_name in _nts_to_skip or
-        'INSTRUCTIONS' in nt_name or
-        'SPLITTER' in nt_name)
+            'INSTRUCTIONS' in nt_name or
+            'SPLITTER' in nt_name)
 
 def _gen_dynamic_part1_fo(agi):
     """
@@ -716,10 +637,12 @@ def _gen_dynamic_part1_fo(agi):
         ildutil.ild_err("Failed to gen dynamic part1 function!\n" +
                         "Unexpected number of rules in %s NT: %s" % 
                         (_spine_nt_name, len(gi.parser_output.instructions)))
+    # This ISA spine has one rule so we work on that one.
     rule = gi.parser_output.instructions[0]
     nt_names = _get_nt_names_from_ii(rule)
     
-    #filter NTs that we want to skip
+    #filter NTs that we want to skip, leaving typially the OSZ_NONTERM
+    #and the ASZ_NONTERM.
     nt_names = list(filter(lambda x: not _skip_nt(x), nt_names))
     fo = _gen_capture_chain_fo(nt_names, fname=_dynamic_part1_fn)
     return fo
@@ -757,7 +680,7 @@ def work(agi, all_state_space, all_ops_widths, patterns):
         gi = agi.generator_dict[nt_name]
         gi.xed3_cdict = nt_cdict #just for transporting
         #create a function_object_t for the NT
-        fo = gen_capture_fo(agi, nt_name, all_ops_widths)
+        fo = _gen_capture_fo(agi, nt_name, all_ops_widths)
         gi.xed3_capture_fo = fo
         capture_fn_list.append(fo)
         _vlog(log_f,fo.emit())

@@ -15,12 +15,14 @@
 #  limitations under the License.
 #  
 #END_LEGAL
+import math
+import copy
+import collections
+
 import genutil
 import ildutil
 import ild_info
-import collections
 import opnds
-import math
 import ild_phash
 import ild_codegen
 import ild_eosz
@@ -28,7 +30,6 @@ import ild_easz
 import ild_nt
 import actions_codegen
 import actions
-import copy
 import verbosity
 import tup2int
 import operand_storage
@@ -65,7 +66,7 @@ def _set_state_space_from_ii(agi, ii, state_space):
     for (name, binding) in list(ii.prebindings.items()):
 
         bitnum = len(binding.bit_info_list)
-        #dirty hack: we don't want big prebidnings to explode
+        #dirty hack: we don't want big prebindings to explode
         #our dictionaries
         #FIXME: this assumes that all constraints used for
         #pattern dispatching (all constraints explicitly mentioned
@@ -104,15 +105,16 @@ def _set_space_from_operands(agi, operands, state_space):
                 state_space[op.name][op_val] = True
 
 def get_all_constraints_state_space(agi):
-    """
-    Returns a 2D dictionary state_space:
+    """Returns a 2D dictionary state_space.
+
     state_space[OPNAME][OPVAL] == True if there is an operand with
     name OPNAME and value OPVAL.
-    In other words dictionary contains all legal values for
-    operands in grammar.
+
+    The dictionary contains all legal values for operands in grammar.
+
     Only operands that appear as operand deciders, prebindings, or
-    instruction operands are added to the returned dictionary.
-    """
+    instruction operands are added to the returned dictionary.    """
+    
     state_space = collections.defaultdict(dict)
     for g in agi.generator_list:
         for ii in g.parser_output.instructions:
@@ -240,7 +242,6 @@ _rm_token_4 = 'RM4'
 def _is_binary_RM_4(cnames, ptrn_list):
     # ptrn_list is a list of ild.pattern_t.  Returns True if all
     # patterns have just RM=4 as a constraint.
-
     if _rm_token not in cnames:
         return False
     for ptrn in ptrn_list:
@@ -256,31 +257,24 @@ def _is_binary_RM_4(cnames, ptrn_list):
                 return False
         else: # some pattern does not have and RM constraint
             return False
-        
     # all have one constraint of RM=4.                
     return True
 
 def _replace_RM_with_RM4(cnames, ptrn_list):
+    # When we call this we know that all the patterns in the pattern
+    # list have RM=4 either from (a) RM[0b100] or (b) RM=4
+    # constraints.  The RM[0b100] is captured in prebindings (and the
+    # constraints, which is how we got here) and 3 raw 1, 0, 0 bits
+    # are present in the pattern.  This function does remove the RM
+    # from the cnames, but it doesn't really do anything to the
+    # ipattern.  So there is no need to search ipattern again
+    
     # ptrn_list is a list of ild.pattern_t
-    #
-    # This looks for RM=4 in the pattern. It will not find "RM[0b100]"
-    # so the patterns should NOT use that for specifying RM=4
-    # requirements.  
-    #
-    # FIXME:2016-01-29: MJC I have a concern that other instructions
-    # with RM[...] constraints might be being mishandled. Need to test.
     cnames.remove(_rm_token)
     cnames.add(_rm_token_4)
     for ptrn in ptrn_list:
-        found = False
-        for bt in ptrn.ii.ipattern.bits:
-            if bt.token == _rm_token:
-                if bt.test == 'eq':
-                    found = True
-                    ptrn.constraints[_rm_token_4] = {1:True}
-                    break
-        if not found:
-            ptrn.constraints[_rm_token_4] = {0:True, 1:True}
+        #print("B-ICLASS: {}".format(ptrn.ii.iclass))
+        ptrn.constraints[_rm_token_4] = {1:True}
 
 _mask_token = 'MASK'
 _mask_token_n0 = 'MASK_NOT0'
@@ -550,10 +544,12 @@ class constraint_dict_t(object):
          
          #dict of all operands -> bit width.
          self.op_widths = {}
+
+         self.action_codegen = None
          
          #dict mapping tuples to rules. 
          #tuples are the constraint values (without the constraint names).
-         self.tuple2rule = {}
+         self.tuple2rule = {}  # ild.pattern_t
          if self.state_space:
              self.tuple2rule = self._initialize_tuple2rule(self.cnames, {})
 
@@ -674,8 +670,8 @@ class constraint_dict_t(object):
         
         ptrn_list = list(self.tuple2rule.values())
         if cname in list(_token_2_module.keys()):
-            nt_module = _token_2_module[cname]
-            getter_fn = nt_module.get_getter_fn(ptrn_list)
+            nt_module = _token_2_module[cname] # name of python module!
+            getter_fn = nt_module.get_getter_fn(ptrn_list) # indirect module refs!
             if not getter_fn: # -> error
                     msg = 'Failed to resolve %s getter fn for '
                     msg += 'MAP:%s OPCODE:%s'
@@ -698,16 +694,33 @@ class constraint_dict_t(object):
             rows.append('HUGE!')
         elif size >= 50:
             rows.append('BIG!')
-        legend = " ".join(self.cnames)
-        legend += ' \t-> VALUE'
+        legend = "{} -> VALUE".format(" ".join(self.cnames))
         rows.append(legend)
         if len(self.tuple2rule) == 0:
             rows.append("_ \t-> %s" % self.rule)
-        for key in sorted(self.tuple2rule.keys()):
-            val = self.tuple2rule[key]
-            rows.append("%s \t-> %s" % (key, str(val)))
-        return "\n".join(rows)
 
+        # print all the decision values first with iclass, if any
+        for key in sorted(self.tuple2rule.keys()):
+            val = self.tuple2rule[key] # ild.pattern_t
+            s = []
+            for cname, tval in zip(self.cnames,key):
+                s.append("{}:{}".format(cname,tval))
+            iclass = 'n/a'
+            if hasattr(val,'iclass'):
+                iclass = val.iclass
+            rows.append("{} -> {}".format(", ".join(s), iclass))
+            
+        rows.append("\n\n")
+        
+        # now print them again with their detailed information
+        for key in sorted(self.tuple2rule.keys()):
+            val = self.tuple2rule[key]  # ild.pattern_t
+            s = []
+            for cname, tval in zip(self.cnames,key):
+                s.append("{}:{}".format(cname,tval))
+            rows.append("{} \t-> {}".format(", ".join(s), str(val)))
+        return "\n".join(rows)
+    
 
 
 def get_constraints_lu_table(ptrns_by_map_opcode, is_amd, state_space,

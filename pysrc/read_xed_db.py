@@ -27,6 +27,7 @@ import genutil
 import opnd_types
 import opnds
 import cpuid_rdr
+import map_info_rdr
 
 def die(s):
     sys.stdout.write("ERROR: {0}\n".format(s))
@@ -37,6 +38,12 @@ def msgb(b,s=''):
 class inst_t(object):
     def __init__(self):
         pass
+    def __str__(self):
+        s = []
+        for fld in sorted(self.__dict__.keys()):
+            s.append("{}: {}".format(fld,getattr(self,fld)))
+        return "\n".join(s) + '\n'
+    
 
 
 class width_info_t(object):
@@ -151,13 +158,17 @@ class xed_reader_t(object):
                  instructions_filename,
                  widths_filename,
                  element_types_filename,
-                 cpuid_filename=''):
+                 cpuid_filename='',
+                 map_descriptions_filename=''):
 
         self.xtypes = self._gen_xtypes(element_types_filename) 
         self.width_type_dict, self.width_info_dict = self._gen_widths(widths_filename)
         
         self.state_bits = self._parse_state_bits(state_bits_filename)
         
+        self.map_info = []
+        if map_descriptions_filename:
+            self.map_info = map_info_rdr.read_file(map_descriptions_filename)
         
         self.deleted_unames = {}
         self.deleted_instructions = {}
@@ -175,6 +186,8 @@ class xed_reader_t(object):
         if cpuid_filename:
             self.cpuid_map = cpuid_rdr.read_file(cpuid_filename)
             self._add_cpuid()
+            
+            
         self._add_vl()
         self._add_broadcasting()
         self._evex_disp8_scaling()
@@ -323,7 +336,7 @@ class xed_reader_t(object):
 
 
     def _evex_disp8_scaling(self):
-        disp8_pattern  = re.compile(r'DISP8_(?P<tupletype>[A-Z0-9]+)')
+        disp8_pattern  = re.compile(r'DISP8_(?P<tupletype>[A-Z0-9_]+)')
         esize_pattern  = re.compile(r'ESIZE_(?P<esize>[0-9]+)_BITS')
         for v in self.recs:
             v.avx512_tuple = None
@@ -332,25 +345,26 @@ class xed_reader_t(object):
                 t = disp8_pattern.search(v.attributes)
                 if t:
                     v.avx512_tuple = t.group('tupletype')
-                    e = esize_pattern.search(v.pattern)
-                    if e:
-                        v.element_size = int(e.group('esize'))
-                    else:
-                        die("Need an element size")
-                    v.memop_width_code = _get_mempop_width_code(v)
-                    
-                    # if the oc2=vv), we get two widths depend on
-                    # broadcasting. Either the width is (a) vl(full),
-                    # vl/2(half), vl/4 (quarter) OR (b) the element
-                    # size for broadcasting.
-                    if v.memop_width_code == 'vv':
-                        divisor = { 'FULL':1, 'HALF':2,'QUARTER':4}
-                        # we might override this value if using broadcasting
-                        v.memop_width = int(v.vl) // divisor[v.avx512_tuple]
-                    else:
-                        wi = self.width_info_dict[v.memop_width_code]
-                        # we can use any width for these since they are not OSZ scalable.
-                        v.memop_width = int(wi.widths[32])
+                    if v.avx512_tuple != 'NO_SCALE':
+                        e = esize_pattern.search(v.pattern)
+                        if e:
+                            v.element_size = int(e.group('esize'))
+                        else:
+                            die("Need an element size")
+                        v.memop_width_code = _get_mempop_width_code(v)
+
+                        # if the oc2=vv), we get two widths depend on
+                        # broadcasting. Either the width is (a) vl(full),
+                        # vl/2(half), vl/4 (quarter) OR (b) the element
+                        # size for broadcasting.
+                        if v.memop_width_code == 'vv':
+                            divisor = { 'FULL':1, 'HALF':2,'QUARTER':4}
+                            # we might override this value if using broadcasting
+                            v.memop_width = int(v.vl) // divisor[v.avx512_tuple]
+                        else:
+                            wi = self.width_info_dict[v.memop_width_code]
+                            # we can use any width for these since they are not OSZ scalable.
+                            v.memop_width = int(wi.widths[32])
     
     def _add_vl(self):
         def _get_vl(iclass,space,pattern):
@@ -441,6 +455,27 @@ class xed_reader_t(object):
                 v.real_opcode='Y'
 
 
+    def _find_legacy_map_opcode(self, pattern):
+        """return (map, opcode:str). map is either an integer or the string AMD for 3dNow"""
+        opcode, mapno = pattern[0], 0 # assume legacy map 0 behavior
+        # records are ordered so that shortest legacy map is last
+        # otherwise this won't work.
+        for mi in self.map_info:
+            if mi.is_legacy():
+                if pattern[0] == mi.legacy_escape:
+                    if mi.legacy_opcode == 'N/A':
+                        mapno = int(mi.map_id)
+                        opcode = pattern[mi.opcpos]
+                        break
+                    elif mi.legacy_opcode == pattern[1]:
+                        if mi.map_id == 'AMD3DNOW':
+                            mapno = mi.map_id
+                        else:
+                            mapno = int(mi.map_id)
+                        opcode = pattern[mi.opcpos] 
+                        break
+        
+        return mapno,opcode
                 
     def _find_opcodes(self):
         '''augment the records with information found by parsing the pattern'''
@@ -474,17 +509,7 @@ class xed_reader_t(object):
             p0 = pattern[0]
             v.map = 0
             v.space = 'legacy'
-            if p0 in  ['0x0F']:
-                if pattern[1] == '0x38':
-                    v.map = 2
-                    opcode = pattern[2]
-                elif pattern[1] == '0x3A':
-                    v.map = 3
-                    opcode = pattern[2]
-                else:
-                    v.map = 1
-                    opcode = pattern[1]
-            elif p0 == 'VEXVALID=1':
+            if p0 == 'VEXVALID=1':
                 v.space = 'vex'
                 opcode = pattern[1]
             elif p0 == 'VEXVALID=2':
@@ -496,11 +521,12 @@ class xed_reader_t(object):
             elif p0 == 'VEXVALID=3':
                 v.space = 'xop'
                 opcode = pattern[1]
-            else:
-                opcode = p0
+            else: # legacy maps and AMD 3dNow (if enabled)
+                v.map, opcode = self._find_legacy_map_opcode(pattern)
+
             v.opcode = opcode
             v.partial_opcode = False
-
+            
             v.amd_3dnow_opcode = None
             # conditional test avoids prefetches and FEMMS.
             if v.extension == '3DNOW' and v.category == '3DNOW':

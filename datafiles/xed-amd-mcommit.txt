@@ -15,12 +15,16 @@
 #  limitations under the License.
 #  
 #END_LEGAL
-xed_reg_enum_t GPRm_B()::
-mode64 | OUTREG=GPR64_B() 
-mode32 | OUTREG=GPR32_B() 
-mode16 | OUTREG=GPR32_B() 
 
-xed_reg_enum_t GPRm_R()::
-mode64 | OUTREG=GPR64_R() 
-mode32 | OUTREG=GPR32_R() 
-mode16 | OUTREG=GPR32_R() 
+{
+ICLASS    : MCOMMIT
+CPL       : 3
+CATEGORY  : MISC
+EXTENSION : MCOMMIT
+ISA_SET   : MCOMMIT
+ATTRIBUTES: AMDONLY
+FLAGS     : MUST [  cf-mod ]
+PATTERN   : 0x0F 0x01 MOD[0b11] MOD=3 REG[0b111] RM[0b010] f3_refining_prefix
+OPERANDS  : 
+
+}

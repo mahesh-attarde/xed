@@ -16,6 +16,14 @@
 #  
 #END_LEGAL
 
+## The ild.py needs the mapping from decode search patterns to
+##   symbolic map names.  It includes V0F, V0F38, V0F3A and it has order
+##   requirements V0F and 0x0F must be after the longer patterns.
+## 
+## The ild_info.py map information is really just the raw map names
+##  in order as we all as an indicator for which maps are irregular.
+
+    
 #maps without AMD
 #it's important that maps are correctly ordered
 ild_maps = ['0x0', '0x0F', '0x0F38', '0x0F3A', 
@@ -25,7 +33,8 @@ ild_maps = ['0x0', '0x0F', '0x0F38', '0x0F3A',
 #it's important that maps are correctly ordered
 ild_maps_with_amd = ild_maps + ['0x0F0F','XMAP8','XMAP9','XMAPA']
 
-#maps to dump in C header files.
+#maps to dump in C header files. These are the irregular maps that
+#require complex handling.
 ild_dump_maps = ['0x0', '0x0F']
 
 def get_maps(is_with_amd):

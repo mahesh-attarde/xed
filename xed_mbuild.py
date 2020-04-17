@@ -100,9 +100,8 @@ class generator_inputs_t(object):
                        'element-type-base',
                        'chip-models',
                        'conversion-table',
-                       'ild-scanners',
-                       'ild-getters',
-                       'cpuid'
+                       'cpuid',
+                       'map-descriptions'
                        ]
         self.files = {} # lists of input files per field type
         self.priority = {} # field type -> int
@@ -220,13 +219,10 @@ class generator_inputs_t(object):
                  aq(self.file_name['element-type-base']))
         s.append('--input-pointer-names ' +
                  aq(self.file_name['pointer-names']))
-        s.append('--ild-scanners ' +
-                 aq(self.file_name['ild-scanners']))
         s.append('--cpuid ' +
                  aq(self.file_name['cpuid']))
-        if len(self.files['ild-getters']) > 0:
-            s.append('--ild-getters ' +
-                     aq(self.file_name['ild-getters']))
+        s.append('--map-descriptions ' +
+                 aq(self.file_name['map-descriptions']))
         if extra_args:
             s.append(extra_args)
         return ' '.join(s)
@@ -310,8 +306,6 @@ def run_decode_generator(gc, env):
     gen_extra_args = "--gendir %s --xeddir %s %s %s" % (build_dir,
                                                         xedsrc, debug,
                                                         other_args)
-    if env['gen_ild_storage']:
-        gen_extra_args += ' --gen-ild-storage'
     
     if env['compress_operands']:
         gen_extra_args += " --compress-operands" 
@@ -587,7 +581,6 @@ def mkenv():
                                  pedantic=True,
                                  clr=False,
                                  use_werror=True,
-                                 gen_ild_storage=False,
                                  show_dag=False,
                                  ext=[],
                                  extf=[],
@@ -719,10 +712,6 @@ def xed_args(env):
                           action="store_false",
                           dest="use_werror",
                           help="Disable use of -Werror on GNU compiles")
-    env.parser.add_option("--gen-ild-storage", 
-                          action="store_true",
-                          dest="gen_ild_storage",
-                          help="Dump ILD storage data file.")
     env.parser.add_option("--show-dag",
                           action="store_true",
                           dest="show_dag",
@@ -1380,14 +1369,6 @@ def _configure_libxed_extensions(env):
         if env['cpx']:
             _add_normal_ext(env,'cpx')
             _add_normal_ext(env,'bf16')
-        if env['tgl']:
-            _add_normal_ext(env,'tgl')
-            _add_normal_ext(env,'cet')
-            _add_normal_ext(env,'movdir')
-            _add_normal_ext(env,'vp2intersect')
-        if env['spr']:
-            _add_normal_ext(env,'spr')
-            _add_normal_ext(env,'enqcmd')
         if env['knl']:
             _add_normal_ext(env,'knl')
         if env['knm']:
@@ -1420,10 +1401,23 @@ def _configure_libxed_extensions(env):
             _add_normal_ext(env,'gfni-vaes-vpcl', 'files-avx-avx512.cfg')
             _add_normal_ext(env,'vpopcntdq-512')
             _add_normal_ext(env,'vpopcntdq-vl')
+        if env['tgl']:
+            _add_normal_ext(env,'tgl')
+            _add_normal_ext(env,'cet')
+            _add_normal_ext(env,'movdir')
+            _add_normal_ext(env,'vp2intersect')
+        if env['spr']:
+            _add_normal_ext(env,'spr')
+            _add_normal_ext(env,'pt')
+            _add_normal_ext(env,'waitpkg')
+            _add_normal_ext(env,'bf16')
+            _add_normal_ext(env,'enqcmd')
+            _add_normal_ext(env,'tsx-ldtrk')
+            _add_normal_ext(env,'serialize')
             
         if env['future']: # now based on ICL
             _add_normal_ext(env,'future')
-            _add_normal_ext(env,'pt')
+            _add_normal_ext(env,'cldemote')
 
 
         
@@ -1559,7 +1553,7 @@ def add_decoder_command(env, gc, gen_dag, prep):
              'pysrc/hashmul.py', 'pysrc/enumer.py', 'pysrc/enum_txt_writer.py',
              'pysrc/xed3_nt.py', 'pysrc/ild_disp.py', 'pysrc/ild_imm.py',
              'pysrc/ild_modrm.py', 'pysrc/ild_storage.py',
-             'pysrc/ild_storage_data.py', 'pysrc/slash_expand.py',
+             'pysrc/slash_expand.py',
              'pysrc/chipmodel.py', 'pysrc/flag_gen.py', 'pysrc/opnd_types.py',
              'pysrc/hlist.py', 'pysrc/ctables.py', 'pysrc/ild.py',
              'pysrc/refine_regs.py', 'pysrc/metaenum.py', 'pysrc/classifier.py']
@@ -1989,7 +1983,8 @@ def build_examples(env):
         env_ex['set_copyright'] = env['set_copyright']
 
     if env['enc2']:
-        env_ex['xed_enc2_libs'] = mbuild.glob(  wkit.lib, '*xed-*enc2-*')
+        env_ex['xed_enc2_libs'] = ( mbuild.glob(wkit.lib, '*xed-chk-enc2-*') + 
+                                    mbuild.glob(wkit.lib, '*xed-enc2-*')      )
 
     try:
         retval = xed_examples_mbuild.examples_work(env_ex)

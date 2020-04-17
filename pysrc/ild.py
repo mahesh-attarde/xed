@@ -15,24 +15,23 @@
 #  limitations under the License.
 #  
 #END_LEGAL
-import sys
 import re
 import copy
+import os
+import collections
+import shutil
+
 import genutil
 import ildutil
 import mbuild
 import ild_info
 import ild_storage
-import ild_storage_data
 import ild_eosz
 import ild_easz
 import ild_imm
 import ild_disp
 import ild_modrm
 import codegen
-import os
-import collections
-import shutil
 import ild_codegen
 import ild_cdict
 import xed3_nt
@@ -40,11 +39,11 @@ import actions
 import verbosity
 
 
-op_bin_pattern = re.compile(r'[_10]{2,}$')
-op_hex_pattern = re.compile(r'[0-9a-f]{2}$', flags=re.IGNORECASE)
+op_bin_pattern      = re.compile(r'[_10]{2,}$')
+op_hex_pattern      = re.compile(r'[0-9a-f]{2}$', flags=re.IGNORECASE)
 reg_binding_pattern = re.compile(r'REG[\[](?P<bits>0b[01_]+)]')
-mod_eq_pattern = re.compile(r'MOD=(?P<bits>[0123]{1})')
-mod_neq_pattern = re.compile(r'MOD(!=|=!)(?P<bits>[0123]{1})')
+mod_eq_pattern      = re.compile(r'MOD=(?P<bits>[0123]{1})')
+mod_neq_pattern     = re.compile(r'MOD(!=|=!)(?P<bits>[0123]{1})')
 
 
 #debugdir is updated in init_debug
@@ -53,8 +52,6 @@ debugdir = '.'
 
 #the debug file
 debug = None
-
-storage_fn = 'ild_storage_data.py'
 
 #FIXME: can we get it from generator.py?
 _xed_3dnow_category = '3DNOW'
@@ -164,16 +161,18 @@ def gen_xed3(agi, ild_info, is_3dnow, ild_patterns,
 
         vv_lu[str(vv)] = (ph_lu,lu_fo_list)
     _msg("all cnames: %s" % all_cnames)
+
+    
     #dump the (a) hash functions and (b) lookup tables for obtaining
-    #these hash functions (at decode time)
+    #these hash functions (at decode time). ** Static decode **
     ild_codegen.dump_vv_map_lookup(agi,
                                    vv_lu,
                                    is_3dnow,
                                    list(op_lu_map.values()),
                                    h_fn='xed3-phash.h')
     
-    #xed3_nt.work generates all the functions and lookup tables for
-    #dynamic decoding
+    #xed3_nt.work(...) generates all the functions and lookup tables for
+    # ** Dynamic decode **
     xed3_nt.work(agi, all_state_space, all_ops_widths, ild_patterns)
 
 #Main entry point of the module
@@ -183,9 +182,6 @@ def work(agi):
     is_3dnow = _is_amd3dnow(agi)
 
     debug.write("state_space:\n %s" % agi.common.state_space)
-    #return
-
-    debug.write("DUMP STORAGE %s\n" % agi.common.options.gen_ild_storage)
 
     # Collect up interesting NT names.
     # We are going to use them when we generate pattern_t objects
@@ -238,62 +234,43 @@ def work(agi):
 
     #generate a list of pattern_t objects that describes the ISA.
     #This is the main data structure for XED3
-    ild_patterns = get_patterns(agi, is_3dnow, eosz_nts, easz_nts, imm_nts,
+    ild_patterns = get_patterns(agi, eosz_nts, easz_nts, imm_nts,
                                 disp_nts, brdisp_nts, all_state_space)
 
     if ild_patterns:
-        if agi.common.options.gen_ild_storage:
-            #dump the ild_storage_data.py file
-            emit_gen_info_lookup(agi, ild_patterns, is_3dnow, debug)
-            reload(ild_storage_data)
 
         #get ild_storage_t object - the main data structure for ILD
         #essentially a 2D dictionary:
-        #united_lookup[map][opcode] == [ ild_info_t ]
-        #the ild_info_t objects are obtained both from grammar and
-        #ild_storage_data.py file, so that if ild_info_t objects are
-        #defined in ild_storage_data.py file, ILD will have information
-        #about illegal map-opcodes too.
-        united_lookup = _get_united_lookup(ild_patterns,is_3dnow)
+        #ild_tbl[map][opcode] == [ ild_info_t ]
+        #the ild_info_t objects are obtained the grammar
+
+        ild_tbl = _convert_to_ild_storage(ild_patterns, is_3dnow)
 
         #generate modrm lookup tables
-        ild_modrm.work(agi, united_lookup, debug)
+        ild_modrm.work(agi, ild_tbl, debug)
 
         #dump_patterns is for debugging
         if verbosity.vild():
             dump_patterns(ild_patterns,
                           mbuild.join(ild_gendir, 'all_patterns.txt'))
 
-
-        eosz_dict = ild_eosz.work(agi, united_lookup,
-                    eosz_nts, ild_gendir, debug)
-
-        easz_dict = ild_easz.work(agi, united_lookup,
-                    easz_nts, ild_gendir, debug)
+        eosz_dict = ild_eosz.work(agi, ild_tbl, eosz_nts, ild_gendir, debug)
+        easz_dict = ild_easz.work(agi, ild_tbl, easz_nts, ild_gendir, debug)
 
         #dump operand accessor functions
         agi.operand_storage.dump_operand_accessors(agi)
         
-
         if eosz_dict and easz_dict:
-            ild_imm.work(agi, united_lookup, imm_nts, ild_gendir,
+            ild_imm.work(agi, ild_tbl, imm_nts, ild_gendir,
                          eosz_dict, debug)
-            ild_disp.work(agi, united_lookup, disp_nts, brdisp_nts,
-                          ild_gendir, eosz_dict, easz_dict, debug)
+            ild_disp.work(agi, ild_tbl, disp_nts, brdisp_nts, ild_gendir,
+                          eosz_dict, easz_dict, debug)
 
-
-        #dump scanners headers - they might be different for different
-        #models.
-        scanners_dict =  agi.common.ild_scanners_dict
-        dump_header_with_header(agi, 'xed-ild-scanners.h', scanners_dict)
-
-        getters_dict =  agi.common.ild_getters_dict
-        dump_header_with_header(agi, 'xed-ild-getters.h', getters_dict)
-        
+        # now handle the actual instructions
         gen_xed3(agi, ild_info, is_3dnow, ild_patterns, 
                  all_state_space, ild_gendir, all_ops_widths)
 
-def dump_header_with_header(agi, fname, header_dict):
+def dump_header_with_header(agi, fname, header_dict):  # FIXME: 2019-10-18 no longer used
     """ emit the header fname.
         add the header in header_dict with the maximal id.
         
@@ -302,7 +279,7 @@ def dump_header_with_header(agi, fname, header_dict):
         different build configuration use different header files.
         e.g. when building without AVX512 we are using the basic getters.
              when building with AVX512 the header that is used comes 
-             form avx512 layer.
+             from avx512 layer.
              
              FIXME: when all avx512 will move into the base layer 
                     we can removed this 
@@ -339,54 +316,38 @@ def dump_header_with_header(agi, fname, header_dict):
     h_file.start()
     h_file.close()
 
-def get_patterns(agi, is_3dnow, eosz_nts, easz_nts,
+def get_patterns(agi, eosz_nts, easz_nts,
                  imm_nts, disp_nts, brdisp_nts, all_state_space):
     """
     This function generates the pattern_t objects that have all the necessary
     information for the ILD. Returns these objects as a list.
     """
     patterns = []
+    pattern_t.map_info = agi.map_info
     for g in agi.generator_list:
         ii = g.parser_output.instructions[0]
         if genutil.field_check(ii,'iclass'):
             for ii in g.parser_output.instructions:
-                ptrn = pattern_t(ii, is_3dnow, eosz_nts,
+                ptrn = pattern_t(ii, eosz_nts,
                                  easz_nts, imm_nts, disp_nts, brdisp_nts,
                                  ildutil.mode_space, all_state_space)
                 patterns.append(ptrn)
                 if ptrn.incomplete_opcode:
-                    expanded_ptrns = ptrn.expand_opcode()
+                    expanded_ptrns = ptrn.expand_partial_opcode()
                     patterns.extend(expanded_ptrns)
     return patterns
 
-
-def _get_united_lookup(ptrn_list,is_3dnow):
-    """
-    Combine storage obtained from grammar and from ILD storage
-    @return: ild_info.storage_t object
-    """
-    #build an ild_info_storage_t object from grammar
-    from_grammar = get_info_storage(ptrn_list, 0, is_3dnow)
-
-    #get an ild_info_storage_t object from ild python-based storage
-    from_storage = ild_storage_data.gen_ild_info()
-
-    #FIXME: should we make is_amd=(is_3dnow or from_storage.is_3dnow)?
-    united_lookup = ild_storage.ild_storage_t(is_amd=is_3dnow)
-
-    #unite the lookups, conflicts will be resolved by priority
-    for insn_map in ild_info.get_maps(is_3dnow):
-        for op in range(0, 256):
-            ulist = (from_grammar.get_info_list(insn_map, hex(op)) +
-                     from_storage.get_info_list(insn_map, hex(op)))
-            united_lookup.set_info_list(insn_map, hex(op), ulist)
-    return united_lookup
+def _convert_to_ild_storage(ptrn_list,is_3dnow):
+    """ Store ILD objects by map/opcode
+    @return: ild_info.storage_t object"""
+    
+    #convert ptrns to ild_info_t and put in a dict of lists indexed by map/opcode
+    return get_info_storage(ptrn_list, 0, is_3dnow)
 
 
 def get_info_storage(ptrn_list, priority, is_3dnow):
-    """
-    convert list of pattern_t objects to ild_storage_t object
-    """
+    """convert list of pattern_t objects to ild_storage_t object"""
+    
     storage = ild_storage.ild_storage_t(is_amd=is_3dnow)
 
     for p in ptrn_list:
@@ -396,37 +357,6 @@ def get_info_storage(ptrn_list, priority, is_3dnow):
     return storage
 
 
-def emit_gen_info_lookup(agi, ptrn_list, is_3dnow, debug):
-    debug.write("DUMPING ILD STORAGE\n")
-    f = codegen.xed_file_emitter_t(agi.common.options.xeddir,
-                                   agi.common.options.xeddir,
-                                   storage_fn,
-                                   shell_file=True)
-
-    storage = get_info_storage(ptrn_list, ild_info.storage_priority, is_3dnow)
-    #list_name = "info_lookup['%s']['%s']"
-    list_name = 'info_list'
-    indent = ' ' * 4
-    f.start()
-    f.add_code("import ild_info")
-    f.add_code("import ild_storage\n\n\n")
-
-    f.add_code("#GENERATED FILE - DO NOT EDIT\n\n\n")
-    f.write("def gen_ild_info():\n")
-    f.write(indent + "storage = ild_storage.ild_storage_t(is_amd=%s)\n" %
-               is_3dnow)
-
-    for insn_map in ild_info.get_dump_maps():
-        for op in range(0, 256):
-            for info in storage.get_info_list(insn_map, hex(op)):
-                f.write("%s#MAP:%s OPCODE:%s\n" %
-                   (indent, info.insn_map, info.opcode))
-                f.write("%sinfo_list = storage.get_info_list('%s','%s')\n" %
-                           (indent, insn_map, hex(op)))
-                emit_add_info_call(info, list_name,
-                                   f, indent)
-    f.write(indent + "return storage\n")
-    f.close()
 
 def emit_add_info_call(info, list_name, f, indent=''):
     s = []
@@ -469,9 +399,10 @@ class pattern_t(object):
     # from a list.
     phys_map_keys = []
     phys_map_dir = {}
+    map_info = None
     first = True
 
-    def __init__(self, ii, is_3dnow, eosz_nts,
+    def __init__(self, ii, eosz_nts,
                  easz_nts, imm_nts, disp_nts, brdisp_nts, mode_space,
                  state_space):
 
@@ -479,17 +410,12 @@ class pattern_t(object):
         # init of class attributes?
         if pattern_t.first:
             pattern_t.first = False
-            self._setup_phys_map(is_3dnow)
+            self._setup_phys_map()
 
         self.ptrn = ii.ipattern_input
         self.ptrn_wrds = self.ptrn.split()
         self.iclass = ii.iclass
         self.legal = True
-
-        #amd 3dnow instructions have nasty 0f 0f ... opcode pattern
-        #in which second 0f is not an opcode! This should be treated
-        #in a special way
-        self.amd3dnow_build = is_3dnow  #this one is NOT used DELETE IT ???
 
         self.category = ii.category
         #FIXME: remove all members of ii stored directly as members
@@ -532,8 +458,10 @@ class pattern_t(object):
         #FIXME: not finished yet
         self.constraints = collections.defaultdict(dict)
 
-
+        mi,insn_map2,opcode2 = self.get_map_opcode_wip()
         insn_map,opcode = self.get_map_opcode()
+        #genutil.msgb("OMC", "{} / {} vs {} / {}".format(insn_map, opcode, insn_map2, opcode2))
+        
         self.insn_map = insn_map
         self.opcode = opcode
 
@@ -629,6 +557,7 @@ class pattern_t(object):
         self.mode = ildutil.mode_space
 
     def parse_opcode(self, op_str):
+        # has side effects of settting self.missing_bits and self.incomplete
         val = None
         if genutil.numeric(op_str):
             val = genutil.make_numeric(op_str)
@@ -656,22 +585,21 @@ class pattern_t(object):
 
     def err(self, msg):
         self.legal = False
-        sys.stderr.write("ILD_PARSER PATTERN ERROR: %s\n\nPattern:\n%s\n" %
-                         (msg, self))
-        mbuild.msgb("ILD_PARSER ERROR", msg)
-        mbuild.msgb("ILD_PARSER", "ABORTED ILD generation")
-        #sys.exit(1)
+        genutil.warn("ILD_PARSER PATTERN ERROR: {}\n\nPattern:\n{}\n".format(msg, self))
+        genutil.msgb("ILD_PARSER ERROR", msg)
+        genutil.msgb("ILD_PARSER", "ABORTED ILD generation")
+        #genutil.die('dying...')
 
     #if opcode is incomplete, than we have 0's in all the missing bits and
     #need to create copies of the pattern_t that have all other possible
     #variations of the opcode. For example PUSH instruction has opcode 0x50
-    #and in expand_opcode method we will create a list of pattern_t objects
+    #and in expand_partial_opcode method we will create a list of pattern_t objects
     #that have opcodes 0x51-0x57
     #We don't need to create the 0x50 variant, because it already exists
     #(it is the current self)
     #That way we will cover all the legal opcodes for the given incomplete
     #opcode.
-    def expand_opcode(self):
+    def expand_partial_opcode(self):
         expanded = []
         if self.incomplete_opcode:
             if 'RM[rrr]' in self.ptrn or 'REG[rrr]' in self.ptrn:
@@ -700,8 +628,10 @@ class pattern_t(object):
                             "from tokens %s" %( tokens))
         return hex(opcode)
 
-    def _setup_phys_map(self,include_amd):
+    def _setup_phys_map(self):
         phys_map_list = [
+            # the right-most element of each tuple is a map name from ild_maps.py
+            # (search string, map name)
             ('0x0F 0x38','0x0F38'),
             ('0x0F 0x3A','0x0F3A'),
             ('V0F38','0x0F38'),
@@ -711,8 +641,8 @@ class pattern_t(object):
             ('MAP5','MAP5'),
             ('MAP6','MAP6') ]
             
-        # The AMD map must be  before the naked 0x0F map
-        if include_amd:
+        # The AMD map must be before the naked 0x0F map
+        if 1: # it does not hurt to always include these.
             phys_map_list.append(('0x0F 0x0F','0x0F0F'))
             phys_map_list.append(('XMAP8','XMAP8'))
             phys_map_list.append(('XMAP9','XMAP9'))
@@ -730,6 +660,21 @@ class pattern_t(object):
             pattern_t.phys_map_keys.append(a)
             pattern_t.phys_map_dir[a] = b
 
+    def get_map_opcode_wip(self):
+        for mi in pattern_t.map_info:
+            # if no search pattern we are on the last record  for map 0
+            if mi.search_pattern == '' or self.ptrn.find(mi.search_pattern) != -1:
+                insn_map = mi.map_name # different than the stuff we use now.
+                try:
+                    opcode = self.ptrn.split()[mi.opcpos]
+                except:
+                    genutil.die("Did not find any pos {} in [{}] for {}".format(mi.opcpos,self.ptrn.split(),mi))
+                parsed_opcode = self.parse_opcode(opcode)
+                if parsed_opcode==None:  # 0x00 is also a value so we must explicitly test vs None, and not use "not parsed_opcode"
+                    genutil.die("Did failed to convert opcode {} from {} for map {}".format(opcode, self.ptrn, mi))
+                return mi, insn_map, hex(parsed_opcode)
+        genutil.die("Did not find map / opcode for {}".format(self.ptrn))
+                
     def get_map_opcode(self):
         insn_map = '0x0'
         s = self.ptrn
