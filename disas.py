@@ -6,8 +6,8 @@ import subprocess
 import xml.etree.ElementTree as ET
 from collections import defaultdict, deque, namedtuple
 
-InstrDisas = namedtuple('InstrDisas', ['iform', 'asm', 'opcode', 'regOperands', 'memOperands', 'attributes'])
-allAttributes = ['AGEN', 'BCAST', 'EOSZ', 'MASK', 'REP', 'REX', 'SAE', 'ZEROING']
+InstrDisas = namedtuple('InstrDisas', ['addr', 'opcode', 'asm', 'iform', 'regOperands', 'memOperands', 'rw', 'attributes'])
+allXmlAttributes = ['agen', 'bcast', 'eosz', 'mask', 'rep', 'rex', 'sae', 'zeroing']
 
 # Returns a list of InstrDisas tuples
 def parseXedOutput(output, useIACAMarkers=False):
@@ -22,7 +22,9 @@ def parseXedOutput(output, useIACAMarkers=False):
       instrOutput = instrOutput.strip()
       lines = instrOutput.splitlines()
 
-      opcode = lines[-1].split()[4]
+      lastLine = lines[-1].split()
+      addr = lastLine[1].replace(':', '')
+      opcode = lastLine[4]
 
       if useIACAMarkers:
          prevOpcodes.appendleft(opcode)
@@ -43,7 +45,7 @@ def parseXedOutput(output, useIACAMarkers=False):
       memOperands = {k:v for k, v in tokens.items() if re.match('MEM\d|AGEN', k)}
       regOperands = {k:v for k, v in tokens.items() if re.match('REG\d', k)}
 
-      attributes = {k:v for k, v in tokens.items() if k in allAttributes and k != 'AGEN'}
+      attributes = {k:v for k, v in tokens.items()}
       if 'MASK' in attributes and attributes['MASK'] != '0':
          attributes['MASK'] = '1'
       if 'AGEN' in tokens:
@@ -53,13 +55,20 @@ def parseXedOutput(output, useIACAMarkers=False):
          if not '*' in first and not '0x' in first: agen += 'B'
          if 'RIP' in v: agen += 'R'
          if '*' in v: agen += 'I'
-         if '0x' in v: agen += 'D'
+         if 'POS_DISP' in attributes: agen += 'D'
          attributes['AGEN'] = agen
 
       asm = lines[-2][6:]
       iform = lines[0].split()[1]
 
-      retList.append(InstrDisas(iform, asm, '0x' + opcode, regOperands, memOperands, attributes))
+      rw = {}
+      for line in lines[1:-2]:
+         sp = line[3:].split('/')
+         n, a = (sp[0], sp[-1])
+         if n in memOperands or n in regOperands:
+            rw[n] = a
+
+      retList.append(InstrDisas(addr, opcode, asm, iform, regOperands, memOperands, rw, attributes))
 
    return retList
 
@@ -84,7 +93,7 @@ def main():
 
    for instr in disas:
       for XMLInstr in iformToXML[instr.iform]:
-         if all(instr.attributes.get(k.upper(), '0') == v for k, v in XMLInstr.attrib.items() if k.upper() in allAttributes):
+         if all(instr.attributes.get(k.upper(), '0') == v for k, v in XMLInstr.attrib.items() if k in allXmlAttributes):
             print XMLInstr.attrib['string'] + ': ' + str(tuple(instr))
             break
 
