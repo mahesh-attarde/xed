@@ -6,7 +6,7 @@ from operator import itemgetter
 def main():
    root = ET.parse('instructions.xml')
    
-   attributes = ['iform', 'eosz', 'rex', 'agen', 'rep', 'zeroing', 'mask', 'bcast', 'sae']   
+   attributes = ['iform', 'eosz', 'high8', 'agen', 'rep', 'zeroing', 'mask', 'bcast', 'sae']
    allIformCombinations = [itemgetter(*attributes)(defaultdict(lambda: 0, instrNode.attrib)) for instrNode in root.iter('instruction')]
    
    assert(len(allIformCombinations) == len(set(allIformCombinations)))

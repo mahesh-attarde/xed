@@ -7,7 +7,7 @@ import xml.etree.ElementTree as ET
 from collections import defaultdict, deque, namedtuple
 
 InstrDisas = namedtuple('InstrDisas', ['addr', 'opcode', 'asm', 'iform', 'regOperands', 'memOperands', 'rw', 'attributes'])
-allXmlAttributes = ['agen', 'bcast', 'eosz', 'mask', 'rep', 'rex', 'sae', 'zeroing']
+allXmlAttributes = ['agen', 'bcast', 'eosz', 'high8', 'mask', 'rep', 'sae', 'zeroing']
 
 # Returns a list of InstrDisas tuples
 def parseXedOutput(output, useIACAMarkers=False):
@@ -48,6 +48,7 @@ def parseXedOutput(output, useIACAMarkers=False):
       attributes = {k:v for k, v in tokens.items()}
       if 'MASK' in attributes and attributes['MASK'] != '0':
          attributes['MASK'] = '1'
+
       if 'AGEN' in tokens:
          v = tokens['AGEN']
          agen = ''
@@ -57,6 +58,8 @@ def parseXedOutput(output, useIACAMarkers=False):
          if '*' in v: agen += 'I'
          if 'POS_DISP' in attributes: agen += 'D'
          attributes['AGEN'] = agen
+
+      attributes['HIGH8'] = ','.join(n for n, r in sorted(regOperands.items()) if r in ['AH', 'BH', 'CH', 'DH'])
 
       asm = lines[-2][6:]
       iform = lines[0].split()[1]

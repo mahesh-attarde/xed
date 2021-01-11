@@ -12,7 +12,7 @@ However, it should be relatively straightforward to adapt it to other assemblers
 We consider a definition of "instruction variant" that is more fine-grained than XED's iforms. 
 For example, we consider versions of an instruction that use 32-bit and 64-bit general-purpose registers (i.e., that use a different effective operand size) to be different "instruction variants"; however, both versions have the same XED iform.
 
-The combination of an *XED iform* and the *eosz*, *rex*, *agen*, *rep*, *zeroing*, *mask*, *bcast*, and *sae* attributes uniquely identifies an "instruction variant".
+The combination of an *XED iform* and the *eosz*, *high8*, *agen*, *rep*, *zeroing*, *mask*, *bcast*, and *sae* attributes uniquely identifies an "instruction variant".
 
 
 ## Generating assembler code for all instruction variants
@@ -32,4 +32,4 @@ This would, for example, be necessary if the configuration files in datafiles/ w
 
 ## uops.info
 
-On [uops.info](http://uops.info/), you can find a version of the instructions.xml file that is extended with latency, throughput, and port usage data for all generations of Intel's Core architecture (i.e., from Nehalem to Coffee Lake).
+On [uops.info](http://uops.info/), you can find a version of the instructions.xml file that is extended with latency, throughput, and port usage data for all generations of Intel's Core architecture (i.e., from Nehalem to Ice Lake).
