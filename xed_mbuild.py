@@ -314,6 +314,8 @@ def run_decode_generator(gc, env):
     
     if env['compress_operands']:
         gen_extra_args += " --compress-operands" 
+    if env['add_orphan_inst_to_future_chip']:
+        gen_extra_args += " --add-orphan-inst-to-future-chip"
         
     cmd = env.expand(gc.decode_command(xedsrc, gen_extra_args))
 
@@ -636,6 +638,7 @@ def mkenv():
                                  pti_test=False,
                                  verbose = 0,
                                  compress_operands=False,
+                                 add_orphan_inst_to_future_chip=False,
                                  test_perf=False,
                                  example_linkflags='',
                                  example_flags='',
@@ -924,6 +927,10 @@ def xed_args(env):
                           dest="compress_operands",
                           help="use bit-fields to compress the "+
                           "operand storage.")
+    env.parser.add_option("--add-orphan-inst-to-future-chip", 
+                          action="store_true",
+                          dest="add_orphan_inst_to_future_chip",
+                          help="Add orphan isa-sets to future chip definition.")
     env.parser.add_option("--test-perf", 
                           action="store_true",
                           dest="test_perf",
@@ -1348,7 +1355,8 @@ def _configure_libxed_extensions(env):
     _add_normal_ext(env,'movdir')
     _add_normal_ext(env,'waitpkg')
     _add_normal_ext(env,'cldemote')
-    _add_normal_ext(env,'sgx-enclv') 
+    if not env['knc']:
+        _add_normal_ext(env,'sgx-enclv') 
 
     if env['avx']:
         _add_normal_ext(env,'avx')
@@ -2034,11 +2042,12 @@ def _copy_dynamic_libs_to_kit(env,xkit):
     mbuild.cmkdir(xkit.extlib)
     executables = mbuild.glob(xkit.bin,'*')
 
-    if 'extern_lib_dir' not in env:
-        env['extern_lib_dir']  = '%(xed_dir)s/external/lin/lib%(arch)s'
-        
-    extra_ld_library_paths = (env['ld_library_path'] +
-                              [ env.expand('%(extern_lib_dir)s')])
+    extra_ld_library_paths = env['ld_library_path']    
+    if env['use_elf_dwarf_precompiled']:
+        if 'extern_lib_dir' not in env:
+            env['extern_lib_dir']  = '%(xed_dir)s/external/lin/lib%(arch)s'
+
+        extra_ld_library_paths.append( env.expand('%(extern_lib_dir)s') )
 
     # run LDD to find the shared libs and do the copies
     okay = external_libs.copy_system_libraries(env,
@@ -2053,26 +2062,7 @@ def _copy_dynamic_libs_to_kit(env,xkit):
         env2 = copy.deepcopy(env)
         xbc.cond_add_elf_dwarf(env2)
         mbuild.copy_file(env2['libelf_license'], xkit.extlib)
-        
 
-def copy_ext_libs_to_kit(env,dest): # 2014-12-02: currently unused
-    if not env['use_elf_dwarf_precompiled']:
-       return
-
-    extlib = mbuild.join(dest,"extlib")
-    mbuild.cmkdir(extlib)
-
-    env2 = copy.deepcopy(env)
-    xbc.cond_add_elf_dwarf(env2)
- 
-    for f in env2['ext_libs']:
-        mbuild.copy_file(env2.expand(f),extlib)
-    existing_file_name = os.path.basename(env2['libelf'])
-    dest_path_and_link = mbuild.join(extlib,env2['libelf_symlink'])
-    if os.path.exists(dest_path_and_link):
-        mbuild.remove_file(dest_path_and_link)
-    mbuild.symlink(env, existing_file_name, dest_path_and_link)
-    mbuild.copy_file(env2['libelf_license'], extlib)
 
 def apply_legal_header2(fn, legal_header):
 
