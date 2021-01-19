@@ -6,7 +6,7 @@ import subprocess
 import xml.etree.ElementTree as ET
 from collections import defaultdict, deque, namedtuple
 
-InstrDisas = namedtuple('InstrDisas', ['addr', 'opcode', 'asm', 'iform', 'regOperands', 'memOperands', 'rw', 'attributes'])
+InstrDisas = namedtuple('InstrDisas', ['addr', 'opcode', 'asm', 'iform', 'extension', 'category', 'isaSet', 'regOperands', 'memOperands', 'rw', 'attributes'])
 allXmlAttributes = ['agen', 'bcast', 'eosz', 'high8', 'mask', 'rep', 'sae', 'zeroing']
 
 # Returns a list of InstrDisas tuples
@@ -24,7 +24,10 @@ def parseXedOutput(output, useIACAMarkers=False):
 
       lastLine = lines[-1].split()
       addr = lastLine[1].replace(':', '')
-      opcode = lastLine[4]
+      category = lastLine[2]
+      extension = lastLine[3]
+      isaSet = lastLine[4]
+      opcode = lastLine[5]
 
       if useIACAMarkers:
          prevOpcodes.appendleft(opcode)
@@ -71,7 +74,7 @@ def parseXedOutput(output, useIACAMarkers=False):
          if n in memOperands or n in regOperands:
             rw[n] = a
 
-      retList.append(InstrDisas(addr, opcode, asm, iform, regOperands, memOperands, rw, attributes))
+      retList.append(InstrDisas(addr, opcode, asm, iform, extension, category, isaSet, regOperands, memOperands, rw, attributes))
 
    return retList
 
@@ -85,7 +88,7 @@ def main():
    parser.add_argument("-iacaMarkers", help="Use IACA markers", action='store_true')
    args = parser.parse_args()
 
-   output = subprocess.check_output(['obj/wkit/bin/xed', '-v', '4', '-i',  args.filename])
+   output = subprocess.check_output(['obj/wkit/bin/xed', '-v', '4', '-isa-set', '-i',  args.filename])
    disas = parseXedOutput(output, args.iacaMarkers)
 
    root = ET.parse(args.xmlfile)
