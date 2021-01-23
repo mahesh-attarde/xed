@@ -64,7 +64,7 @@ def main():
             elif instrNode.attrib.get('sae', '') == '1':
                asm += '{sae}, '
             width = int(operandNode.attrib['width'])
-            if operandNode.attrib.get('implicit', '') == '1':
+            if operandNode.text is not None:
                imm = operandNode.text
             else:
                imm = (1 << (width-8)) + 1
