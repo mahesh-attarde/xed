@@ -12,6 +12,7 @@ allXmlAttributes = ['agen', 'bcast', 'eosz', 'high8', 'immzero', 'mask', 'rep', 
 # Returns a list of InstrDisas tuples
 def parseXedOutput(output, useIACAMarkers=False):
    output = re.sub('#.*\n', '', output)
+   output = re.sub('Setting chip.*\n', '', output)
    output = re.sub('Mapped.*\n', '', output)
    output = re.sub('RESETTING STATS', '', output)
 
