@@ -54,8 +54,10 @@ def main():
 
             if 'R' in agen: address.append('RIP')
             if 'B' in agen: address.append('RAX')
-            if 'I' in agen: address.append('2*RBX')
-            if 'D' in agen: address.append('8')
+            if 'IS' in agen: address.append('2*RBX')
+            elif 'I' in agen: address.append('1*RBX')
+            if 'D8' in agen: address.append('8')
+            if 'D32' in agen: address.append('128')
 
             asm += ' [' + '+'.join(address) + ']'
          elif operandNode.attrib['type'] == 'imm':

@@ -484,7 +484,8 @@ def generateXMLFile(agi):
       for eosz in eoszSet:
          for high8RegNames in powerset(GPR8OperandNames):
             for immzero in ([True, False] if (hasExplicitImm8 and ii.extension == 'BASE') else [None]):
-               for agen in (['R', 'RD', 'B', 'I', 'D', 'BI', 'BD', 'ID', 'BID'] if hasAGENOperand else [None]):
+               for agen in (['R', 'R_D8', 'R_D32', 'B', 'I', 'IS', 'D8', 'D32', 'B_I', 'B_IS','B_D8', 'B_D32', 'I_D8', 'IS_D8', 'I_D32', 'IS_D32', 'B_I_D8',
+                             'B_IS_D8', 'B_I_D32', 'B_IS_D32'] if hasAGENOperand else [None]):
                   if agen is not None and 'R' in agen and ii.attributes and 'NO_RIP_REL' in ii.attributes:
                      continue
                   for broadcast in ([False,True] if ii.attributes and 'BROADCAST_ENABLED' in ii.attributes else [False]):

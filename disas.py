@@ -49,19 +49,20 @@ def parseXedOutput(output, useIACAMarkers=False):
       memOperands = {k:v for k, v in tokens.items() if re.match('MEM\d|AGEN', k)}
       regOperands = {k:v for k, v in tokens.items() if re.match('REG\d', k)}
 
-      attributes = {k:v for k, v in tokens.items()}
+      attributes = dict(tokens)
       if 'MASK' in attributes and attributes['MASK'] != '0':
          attributes['MASK'] = '1'
 
       if 'AGEN' in tokens:
          v = tokens['AGEN']
-         agen = ''
+         agen = []
          first = v.split('+')[0]
-         if not '*' in first and not '0x' in first: agen += 'B'
-         if 'RIP' in v: agen += 'R'
-         if '*' in v: agen += 'I'
-         if 'POS_DISP' in attributes: agen += 'D'
-         attributes['AGEN'] = agen
+         if not '*' in first and not '0x' in first: agen.append('B')
+         if 'RIP' in v: agen.append('R')
+         if '*1' in v: agen.append('I')
+         elif '*' in v: agen.append('IS')
+         if 'DISP_WIDTH' in attributes: agen.append('D' + attributes['DISP_WIDTH'])
+         attributes['AGEN'] = '_'.join(agen)
 
       attributes['HIGH8'] = ','.join(n for n, r in sorted(regOperands.items()) if r in ['AH', 'BH', 'CH', 'DH'])
 
