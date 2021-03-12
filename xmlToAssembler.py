@@ -1,10 +1,11 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
+
 import xml.etree.ElementTree as ET
 
 def main():
    root = ET.parse('instructions.xml')
 
-   print '.intel_syntax noprefix'
+   print('.intel_syntax noprefix')
    for instrNode in root.iter('instruction'):
       # Future instruction set extensions
       if instrNode.attrib['extension'] in ['AMD_INVLPGB', 'AMX_BF16', 'AMX_INT8', 'AMX_TILE', 'CLDEMOTE', 'ENQCMD', 'HRESET', 'KEYLOCKER', 'KEYLOCKER_WIDE', 'MCOMMIT', 'MOVDIR', 'PCONFIG', 'RDPRU', 'SERIALIZE', 'SNP', 'TDX', 'TSX_LDTRK', 'UINTR', 'WAITPKG', 'WBNOINVD']:
@@ -80,7 +81,7 @@ def main():
          elif instrNode.attrib.get('sae', '') == '1':
             asm += ', {sae}'
 
-      print asm
+      print(asm)
 
 if __name__ == "__main__":
     main()

@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 
 import argparse
 import re
@@ -93,7 +93,7 @@ def main():
    parser.add_argument("-iacaMarkers", help="Use IACA markers", action='store_true')
    args = parser.parse_args()
 
-   output = subprocess.check_output(['obj/wkit/bin/xed', '-v', '4', '-isa-set', '-i',  args.filename])
+   output = subprocess.check_output(['obj/wkit/bin/xed', '-v', '4', '-isa-set', '-i',  args.filename]).decode()
    disas = parseXedOutput(output, args.iacaMarkers)
 
    root = ET.parse(args.xmlfile)
@@ -105,7 +105,7 @@ def main():
    for instr in disas:
       for XMLInstr in iformToXML[instr.iform]:
          if all(instr.attributes.get(k.upper(), '0') == v for k, v in XMLInstr.attrib.items() if k in allXmlAttributes):
-            print XMLInstr.attrib['string'] + ': ' + str(tuple(instr))
+            print(XMLInstr.attrib['string'] + ': ' + str(tuple(instr)))
             break
 
 if __name__ == "__main__":
