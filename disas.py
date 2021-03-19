@@ -57,7 +57,7 @@ def parseXedOutput(output, useIACAMarkers=False):
          v = tokens['AGEN']
          agen = []
          first = v.split('+')[0]
-         if not '*' in first and not '0x' in first: agen.append('B')
+         if (not '*' in first) and (not '0x' in first) and (not 'RIP' in first): agen.append('B')
          if 'RIP' in v: agen.append('R')
          if '*1' in v: agen.append('I')
          elif '*' in v: agen.append('IS')
