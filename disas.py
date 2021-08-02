@@ -4,7 +4,7 @@ import argparse
 import re
 import subprocess
 import xml.etree.ElementTree as ET
-from collections import defaultdict, deque, namedtuple
+from collections import defaultdict, namedtuple
 
 InstrDisas = namedtuple('InstrDisas', ['addr', 'opcode', 'asm', 'iform', 'extension', 'category', 'isaSet', 'regOperands', 'memOperands', 'rw', 'attributes'])
 allXmlAttributes = ['agen', 'bcast', 'eosz', 'high8', 'immzero', 'mask', 'rep', 'sae', 'zeroing']
@@ -18,8 +18,8 @@ def parseXedOutput(output, useIACAMarkers=False):
 
    retList = []
    iacaStartMarkerFound = False
-   prevOpcodes = deque(maxlen=3)
-   for instrOutput in re.findall('([\s\S]*?XDIS.*\n)', output):
+   prevOpcode = ''
+   for instrOutput in re.findall(r'([\s\S]*?XDIS.*\n)', output):
       instrOutput = instrOutput.strip()
       lines = instrOutput.splitlines()
 
@@ -31,23 +31,25 @@ def parseXedOutput(output, useIACAMarkers=False):
       opcode = lastLine[5]
 
       if useIACAMarkers:
-         prevOpcodes.appendleft(opcode)
+         lastTwoOpcodes = prevOpcode + opcode
+         prevOpcode = opcode
 
          if iacaStartMarkerFound:
-            if ''.join(prevOpcodes) == '0F0B646790BBDE000000':
-               retList.pop()
+            if lastTwoOpcodes == 'BBDE000000646790':
                retList.pop()
                break
+            elif opcode == '65C60425DE000000DE':
+               break
          else:
-            if ''.join(prevOpcodes) == '646790BB6F0000000F0B':
+            if (lastTwoOpcodes == 'BB6F000000646790') or (opcode == '65C604256F0000006F'):
                iacaStartMarkerFound = True
             continue
 
-      tokensList = lines[0][re.match("\S* \S* ", lines[0]).end():].split(', ')
+      tokensList = lines[0][re.match(r'\S* \S* ', lines[0]).end():].split(', ')
       tokens = {s[0]:(s[1] if len(s)>1 else '1') for x in tokensList for s in [x.split(':')]}
 
-      memOperands = {k:v for k, v in tokens.items() if re.match('MEM\d|AGEN', k)}
-      regOperands = {k:v for k, v in tokens.items() if re.match('REG\d', k)}
+      memOperands = {k:v for k, v in tokens.items() if re.match(r'MEM\d|AGEN', k)}
+      regOperands = {k:v for k, v in tokens.items() if re.match(r'REG\d', k)}
 
       attributes = dict(tokens)
       if 'MASK' in attributes and attributes['MASK'] != '0':
@@ -88,9 +90,9 @@ def parseXedOutput(output, useIACAMarkers=False):
 # With the -iacaMarkers option, only the parts of the code that are between the IACA markers are considered.
 def main():
    parser = argparse.ArgumentParser(description='Disassembler')
-   parser.add_argument('xmlfile', help="XML file")
-   parser.add_argument('filename', help="File to be disassembled")
-   parser.add_argument("-iacaMarkers", help="Use IACA markers", action='store_true')
+   parser.add_argument('xmlfile', help='XML file')
+   parser.add_argument('filename', help='File to be disassembled')
+   parser.add_argument('-iacaMarkers', help='Use IACA markers', action='store_true')
    args = parser.parse_args()
 
    output = subprocess.check_output(['obj/wkit/bin/xed', '-v', '4', '-isa-set', '-i',  args.filename]).decode()
