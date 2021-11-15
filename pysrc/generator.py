@@ -22,7 +22,7 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
-#  
+#
 #END_LEGAL
 
 
@@ -435,7 +435,7 @@ def generateXMLFile(agi):
    for ext in sorted(extensionToIclassesDict.keys()):
       XMLExtension = SubElement(XMLRoot, 'extension')
       XMLExtension.attrib['name'] = ext
-   
+
    addedXMLInstrs = {}
    for ii in sorted(allInstructions, key=str):
       # EVEX encoded instructions for which there is a non-EVEX encoded instruction with the same iclass
@@ -781,7 +781,7 @@ def generateXMLFile(agi):
                                  msge('  ' + XMLStr)
                            else:
                               addedXMLInstrs[instrString] = XMLInstr
-                              XMLExtension = XMLRoot.find('extension[@name="'+ii.extension+'"]').append(XMLInstr)
+                              XMLRoot.find('extension[@name="'+ii.extension+'"]').append(XMLInstr)
 
    # add missing attributes that are necessary to distinguish instruction variants with the same iforms
    iformToXML = defaultdict(list)
@@ -794,6 +794,9 @@ def generateXMLFile(agi):
          for a in attributes:
             if not a in XMLInstr.attrib:
                XMLInstr.attrib[a] = '0'
+         XMLInstr.attrib = dict(sorted(XMLInstr.attrib.items()))
+         for op in XMLInstr.iter():
+            op.attrib = dict(sorted(op.attrib.items()))
 
    rough_string = ElementTree.tostring(XMLRoot, 'utf-8')
    reparsed = minidom.parseString(rough_string)
@@ -864,142 +867,142 @@ import classifier
 def setup_arg_parser():
     arg_parser = optparse.OptionParser()
     arg_parser.add_option('--debug',
-                          action='store_true', 
-                          dest='debug', 
+                          action='store_true',
+                          dest='debug',
                           default=False,
                           help='Start PDB debugger')
     arg_parser.add_option('--limit-enum-strings',
-                          action='store_true', 
-                          dest='limit_enum_strings', 
+                          action='store_true',
+                          dest='limit_enum_strings',
                           default=False,
                           help='Save space by limiting the enum strings')
     arg_parser.add_option('--gendir',
-                          action='store', 
-                          dest='gendir', 
+                          action='store',
+                          dest='gendir',
                           default='gen',
                           help='Directory for generated files')
     arg_parser.add_option('--xeddir',
                           action='store',
-                          dest='xeddir', 
+                          dest='xeddir',
                           default='',
                           help='Directory for generated files')
     arg_parser.add_option('--input-regs',
-                          action='store', 
-                          dest='input_regs', 
+                          action='store',
+                          dest='input_regs',
                           default='',
                           help='Register input file')
     arg_parser.add_option('--input-widths',
-                          action='store', 
-                          dest='input_widths', 
+                          action='store',
+                          dest='input_widths',
                           default='',
                           help='Widths input file')
     arg_parser.add_option('--input-extra-widths',
-                          action='store', 
+                          action='store',
                           dest='input_extra_widths',
                           default='',
                           help='Extra widths input file')
     arg_parser.add_option('--input-element-types',
-                          action='store', 
-                          dest='input_element_types', 
+                          action='store',
+                          dest='input_element_types',
                           default='',
-                          help='File with mappings from type names to' + 
+                          help='File with mappings from type names to' +
                           ' widths and base element types')
     arg_parser.add_option('--input-element-type-base',
-                          action='store', 
-                          dest='input_element_type_base', 
+                          action='store',
+                          dest='input_element_type_base',
                           default='',
                           help='new chunk for element type enum')
     arg_parser.add_option('--input-pointer-names',
-                          action='store', 
-                          dest='input_pointer_names', 
+                          action='store',
+                          dest='input_pointer_names',
                           default='',
                           help='Pointer names input file for disassembly')
     arg_parser.add_option('--input-fields',
-                          action='store', 
-                          dest='input_fields', 
+                          action='store',
+                          dest='input_fields',
                           default='',
                           help='Operand storage description  input file')
     arg_parser.add_option('--input',
-                          action='store', 
-                          dest='input', 
+                          action='store',
+                          dest='input',
                           default='',
                           help='Input file')
     arg_parser.add_option('--input-state',
-                          action='store', 
-                          dest='input_state', 
+                          action='store',
+                          dest='input_state',
                           default='xed-state-bits.txt',
                           help='state input file')
     arg_parser.add_option('--inst',
-                          action='store', 
-                          dest='inst_init_file', 
+                          action='store',
+                          dest='inst_init_file',
                           default='xed-init-inst-table.c',
                           help='Instruction table init file')
     arg_parser.add_option('--sout',
-                          action='store', 
-                          dest='structured_output_fn', 
+                          action='store',
+                          dest='structured_output_fn',
                           default='xed-sout.txt',
                           help='Emit structured output file')
     arg_parser.add_option('--patterns',
                           action='store',
-                          dest='structured_input_fn', 
+                          dest='structured_input_fn',
                           default='',
                           help='Read structured input file')
     arg_parser.add_option('--chip-models',
-                          action='store', 
-                          dest='chip_models_input_fn', 
+                          action='store',
+                          dest='chip_models_input_fn',
                           default='',
                           help='Chip models input file name')
     arg_parser.add_option('--ctables',
-                          action='store', 
-                          dest='ctables_input_fn', 
+                          action='store',
+                          dest='ctables_input_fn',
                           default='',
                           help='Conversion tables input file name')
     arg_parser.add_option('--isa',
-                          action='store', 
-                          dest='isa_input_file', 
+                          action='store',
+                          dest='isa_input_file',
                           default='',
-                          help='Read structured input file containing' + 
+                          help='Read structured input file containing' +
                                ' the ISA INSTRUCTIONS() nonterminal')
     arg_parser.add_option('--spine',
-                          action='store', 
-                          dest='spine', 
+                          action='store',
+                          dest='spine',
                           default='',
                           help='Read the spine file containing the' +
                                ' top-most decoder nonterminal')
     arg_parser.add_option('--print-graph',
-                          action='store_true', 
-                          dest='print_graph', 
+                          action='store_true',
+                          dest='print_graph',
                           default=False,
                           help='Print the graph for each nonterminal (big)')
 
     arg_parser.add_option('--verbosity', '--verbose', '-v',
-                          action='append', 
-                          dest='verbosity', 
+                          action='append',
+                          dest='verbosity',
                           default=[],
                           help='Level of verbosity, repeatable. '  +
                                ' Values=1..7, enc,merge')
     arg_parser.add_option('--no-imm-suffix',
-                          action='store_false', 
-                          dest='add_suffix_to_imm', 
+                          action='store_false',
+                          dest='add_suffix_to_imm',
                           default=True,
                           help='Omit width suffixes from iforms')
     arg_parser.add_option('--cpuid',
-                          action='store', 
-                          dest='cpuid_input_fn', 
+                          action='store',
+                          dest='cpuid_input_fn',
                           default='',
                           help='isa-set to cpuid map input file')
     arg_parser.add_option('--map-descriptions',
-                          action='store', 
-                          dest='map_descriptions_input_fn', 
+                          action='store',
+                          dest='map_descriptions_input_fn',
                           default='',
                           help='map descriptions input file')
-    arg_parser.add_option("--compress-operands", 
+    arg_parser.add_option("--compress-operands",
                           action="store_true",
                           dest="compress_operands",
                           default=False,
                           help="use bit-fields to compress the "+
                           "operand storage.")
-    arg_parser.add_option("--add-orphan-inst-to-future-chip", 
+    arg_parser.add_option("--add-orphan-inst-to-future-chip",
                           action="store_true",
                           dest="add_orphan_inst_to_future_chip",
                           default=False,
@@ -1015,7 +1018,7 @@ def is_header(fn):
       return True
    return False
 
-      
+
 ############################################################################
 # Compiled patterns used in this program
 ############################################################################
@@ -1111,10 +1114,10 @@ class nonterminal_info_t(object):
       self.name = name
       self.type = type
       self.start_node = None
-      
+
    def set_start_node(self,n):
       self.start_node = n
-   
+
    def is_lookup_function(self):
       if self.type != None:
          return True
@@ -1127,11 +1130,11 @@ class nonterminal_dict_t(object):
    def __init__(self):
       # dictionary of nonterminal_info_t's by short name.
       # nonterminal_info_t has {name, type, start_node}
-      self.nonterminal_info = {} 
+      self.nonterminal_info = {}
 
    def keys(self):
       return list(self.nonterminal_info.keys())
-   
+
    def add_graph_node(self, nt_name, node_id):
       """set the node id in the graph node"""
       if nt_name not in self.nonterminal_info:
@@ -1143,7 +1146,7 @@ class nonterminal_dict_t(object):
       if nt_name in self.nonterminal_info:
          return self.nonterminal_info[nt_name]
       die("Did not find " + nt_name + " in the nonterminal dictionary.")
-         
+
    def add_to_dict(self,short_nt_name, nt_type=None):
       msge("Adding " + short_nt_name + " to nonterminal dict")
       #nonterminal_info_t has {name, type, start_node, encode, decoder}
@@ -1166,7 +1169,7 @@ class bit_info_t(object):
    bits are type bit.  The other kinds of bits are dontcares which are
    letter names, state bits, operand tests and nonterminals.
    """
-   
+
    bit_types = [ 'bit', 'dontcare', 'operand', 'nonterminal'  ]
    def __init__(self, value, btype='bit', pbit=-1):
       self.btype = btype  # See bit_info_t.bit_types
@@ -1174,13 +1177,13 @@ class bit_info_t(object):
 
       # Physical bits are bits that are real. They are offsets from
       # the beginnning of this nonterminal or the last nonterminal.
-      
+
       self.pbit = pbit
-      
+
       self.token = None  # operand decider
       self.test = None   # eq or ne
       self.requirement = None # the value the od must have (or not have)
-      
+
       if btype == 'operand':
          # for operands, we split them in to a token name and a required value.
          #search for FOO=233 or FOO!=233
@@ -1206,7 +1209,7 @@ class bit_info_t(object):
          if self.btype == other.btype:
             return True
       return False
-   
+
    def __ne__(self,other):
       if other == None:
          return True
@@ -1215,7 +1218,7 @@ class bit_info_t(object):
       if self.btype != other.btype:
          return True
       return False
-   
+
    def __str__(self):
       s =  self.btype + '/' + str(self.value)
       if self.pbit != -1:
@@ -1239,7 +1242,7 @@ class bit_info_t(object):
       if self.btype == 'dontcare':
          return True
       return False
-   
+
    def is_real_bit(self):
       if self.btype == 'dontcare' or self.btype == 'bit':
          return True
@@ -1266,7 +1269,7 @@ class bits_list_t(object):
       self.bits = []
    def append(self,x):
       self.bits.append(x)
-      
+
    def __str__(self):
       return self.just_bits()
 
@@ -1309,7 +1312,7 @@ class state_info_t(object):
       return s
 
 ############################################################################
-      
+
 
 def pad_pattern(pattern):
    "pad it to a multiple of 8 bits"
@@ -1343,15 +1346,15 @@ def read_state_spec(fn):
       si = state_info_t(tag,spattern)
 
       state_bits[tag] = si
-      
+
    return state_bits
-      
+
 def compute_state_space(state_dict):
    """Figure out all the values for each token, return a dictionary
    indexed by token name"""
 
    state_values = collections.defaultdict(set)
-   
+
    for k in state_dict.keys():
       vals = state_dict[k]
       for wrd in vals.list_of_str:
@@ -1375,10 +1378,10 @@ def compute_state_space(state_dict):
    for k,v in state_values.items():
        output[k]=list(v)
    return output
-         
+
 
 ############################################################################
-        
+
 def validate_field_width(agi, field_name, bits):
     b=make_binary(bits)
     n = len(b)
@@ -1399,19 +1402,19 @@ class prebinding_t(object):
       self.bit_info_list = [] # list of bit_info_t's
    def add_bit(self, b):
       self.bit_info_list.append(b)
-   
+
    def is_constant(self):
       for bi in self.bit_info_list:
            if bi.is_dont_care():
                return False #dontcare in prebinding
       return True
-   
+
    def get_value(self):
        value = ''
        for bi in self.bit_info_list:
            value += bi.just_bits()
        return value
-   
+
    def __str__(self):
       s = []
       s.append(self.field_name)
@@ -1432,7 +1435,7 @@ def parse_opcode_spec(agi, line, state_dict):
     @return: (list of bits, -- everything is raw bits at this level
               list of operand binding tuples,--  same info as the prebindings
               list bit_info_t, -- interpreted bits with types and positions
-              dict of prebinding_t,  -- dictionary of the captured fields 
+              dict of prebinding_t,  -- dictionary of the captured fields
                                         pointing to bits
               xed_bool_t otherwise_ok)
     """
@@ -1454,7 +1457,7 @@ def parse_opcode_spec(agi, line, state_dict):
     all_bits = []
     #
     # 1. hex byte
-    # 2. immediate capture IMM(a-z,0-9) ??? IS THIS USED???  
+    # 2. immediate capture IMM(a-z,0-9) ??? IS THIS USED???
     #                      IMM(a,9) -- old form of slash
     # 3. slash pattern (just more letter bits)
     # 4. pattern binding eg: MOD[mm] or MOD[11_]
@@ -1466,7 +1469,7 @@ def parse_opcode_spec(agi, line, state_dict):
     for w in wrds:
        if w == 'otherwise':
           return (None,None,None,None,True)
-          
+
        if hex_pattern.match(w):
           bits = pad_to_multiple_of_8bits(hex_to_binary(w))
           for b in bits:
@@ -1502,7 +1505,7 @@ def parse_opcode_spec(agi, line, state_dict):
           all_bits.extend(bits_list)
           continue
        if nonterminal_pattern.search(w):
-          # got a nonterminal 
+          # got a nonterminal
           bits = [ w ]
           all_bit_infos.append(bit_info_t(w,'nonterminal', bcount))
           bcount += 1
@@ -1520,7 +1523,7 @@ def parse_opcode_spec(agi, line, state_dict):
           if agi.operand_storage.decoder_skip(token):
               #msge("SKIPPING RESTRICTION PATTERN " +  str(w))
               continue
-          
+
           # avoid adding redundant restriction patterns
           if w not in all_bits:
               # bit_info_t constructor reparses restriction pattern
@@ -1528,7 +1531,7 @@ def parse_opcode_spec(agi, line, state_dict):
               bcount += 1
               all_bits.extend([ w ])
           continue
-       
+
        if formal_binary_pattern.search(w):
            bits = make_binary(w)
            all_bits.extend(bits)
@@ -1551,14 +1554,14 @@ def parse_opcode_spec(agi, line, state_dict):
 
     # We now also have a a list of bit_info_t's in all_bit_infos and a
     # dictionary of prebinding_t's in all_prebindings.
-       
+
     return (all_bits, extra_bindings, all_bit_infos, all_prebindings, False)
 
 def add_str(s, name, value):
    t =  s + '%-15s' % (name) + ': '
    if type(value) == list:
       for q in value:
-         t += q + ' ' 
+         t += q + ' '
    else:
        t += value
    t += '\n'
@@ -1571,8 +1574,8 @@ def add_str_list(s, name, values):
    s = s + '\n'
    return s
 
-      
-#for the first not commented, non-empty line from lines, 
+
+#for the first not commented, non-empty line from lines,
 #return if regexp.search succeeds
 def accept(regexp, lines):
    #msge("In accept!")
@@ -1587,7 +1590,7 @@ def accept(regexp, lines):
    if re.search(regexp,line):
       return True
    return False
-   
+
 
 def read_str(lines,name):
    "Read a line emitted by add_str() above. Split on 1st colon"
@@ -1603,7 +1606,7 @@ def read_str(lines,name):
    iname = iname.strip()
    rest = rest.strip()
    if iname != name:
-      die('Misparsed structured input file. Expecting: [' 
+      die('Misparsed structured input file. Expecting: ['
           + name + '] Observed: [' + iname + ']')
    return rest
 
@@ -1636,7 +1639,7 @@ def parse_extra_operand_bindings(agi, extra_bindings):
       new_operand = opnds.operand_info_t(name,
                                          'imm',
                                          list(bits_str),
-                                         vis='SUPP', 
+                                         vis='SUPP',
                                          oc2=oc2)
       # DENOTE THESE AS INLINE TO ALLOW EARLY CAPTURING
       if vbind():
@@ -1649,7 +1652,7 @@ def parse_extra_operand_bindings(agi, extra_bindings):
 #are per object type. So if you derive a new class bar from class foo,
 #then the instance (attribute) variables of class foo and class bar
 #are disjoint.
-global_inum = 0  
+global_inum = 0
 
 # $$ partitionable
 class partitionable_info_t(object):
@@ -1657,7 +1660,7 @@ class partitionable_info_t(object):
       global global_inum
       self.inum = global_inum
       global_inum += 1
-   
+
    def __init__(self, name='', ipattern_input='', operands_input=None):
 
       self.new_inum()
@@ -1666,14 +1669,14 @@ class partitionable_info_t(object):
 
       self.ipattern_input = ipattern_input
       self.ipattern =  None # bits_list_t()
-      self.prebindings = None # dictionary 
+      self.prebindings = None # dictionary
 
       if operands_input:
           self.operands_input = operands_input
       else:
           self.operands_input = []
 
-      self.operands = [] # list of opnds.operand_info_t's 
+      self.operands = [] # list of opnds.operand_info_t's
 
       # FOR HIERARCHICAL RECORDS -- THESE GET SPLIT OFF AFTER RECORD-READ
       self.extra_ipatterns = []
@@ -1689,7 +1692,7 @@ class partitionable_info_t(object):
 
 
       self.encoder_func_obj = None # an instance of a class function_object_t
-      
+
       self.encoder_operands = None
 
       self.otherwise_ok = False
@@ -1702,7 +1705,7 @@ class partitionable_info_t(object):
        if field_check(self,'iclass'):
            return self.iclass
        return '*NO-ICLASS*'
-      
+
    def refine_parsed_line(self, agi, state_dict):
       """Refine the ipattern_input to ipattern, parse up operands"""
       (simple_pattern,
@@ -1710,12 +1713,12 @@ class partitionable_info_t(object):
        all_bit_infos,
        all_prebindings,
        otherwise_ok) = parse_opcode_spec(agi,self.ipattern_input, state_dict)
-      
+
       if otherwise_ok: # FIXME: 2008-09-25 - need to remove this for more
                        #                     general "otherwise" handling
          self.otherwise_ok = True
-         return 
-      
+         return
+
       self.ipattern = bits_list_t()
       self.ipattern.bits = all_bit_infos
       self.prebindings = all_prebindings
@@ -1727,7 +1730,7 @@ class partitionable_info_t(object):
          self.operands.extend(extra_operands)
 
       self.check_for_simple_nts()
-      
+
    def check_for_simple_nts(self):
       """Check for NTs that do not accept bits. We'll make them in to
       fast functions"""
@@ -1742,12 +1745,12 @@ class partitionable_info_t(object):
       self.all_nonterminals = all_nonterminals
       self.all_operand_deciders = all_operand_deciders
 
-      
+
    def __str__(self):
       return self.dump_str()
-   
+
    def dump_str(self, pad='',brief=None):
-      return self.input_str 
+      return self.input_str
 
    def dump_structured(self,pad=''):
       lst = []
@@ -1756,7 +1759,7 @@ class partitionable_info_t(object):
       s += ' '.join(self.operands_input)
       lst.append( s )
       return lst
-   
+
    def dump(self, pad=''):
       for s in self.dump_structured(pad):
          msge(s)
@@ -1765,32 +1768,32 @@ class partitionable_info_t(object):
       msge("BITLENGTHS: " + s)
       s = ''
       for b in self.ipattern.bits:
-            s += ' ' + b.value 
+            s += ' ' + b.value
 
       msge("GRAPHBITS: " + s)
 
 ############################################################################
-    
+
 # indicates which fields are required in the input parsing
-structured_input_tags = {'ICLASS':          True,  
-                         'UNAME':           False, 
-                         'CATEGORY':        True,  
-                         'EXTENSION':       True,  
-                         'ISA_SET':         False, 
-                         'STATE':           False, 
-                         'PATTERN':         True,  
-                         'ATTRIBUTES':      False, 
-                         'OPERANDS':        False, 
-                         'UCODE':           False, 
-                         'FLAGS':           False, 
-                         'VERSION':         False, 
-                         'CPL':             False, 
-                         'COMMENT':         False, 
-                         'EXCEPTIONS':      False, 
-                         'DISASM':          False, 
-                         'DISASM_INTEL':    False, 
-                         'DISASM_ATTSV':    False, 
-                         'IFORM':           False  
+structured_input_tags = {'ICLASS':          True,
+                         'UNAME':           False,
+                         'CATEGORY':        True,
+                         'EXTENSION':       True,
+                         'ISA_SET':         False,
+                         'STATE':           False,
+                         'PATTERN':         True,
+                         'ATTRIBUTES':      False,
+                         'OPERANDS':        False,
+                         'UCODE':           False,
+                         'FLAGS':           False,
+                         'VERSION':         False,
+                         'CPL':             False,
+                         'COMMENT':         False,
+                         'EXCEPTIONS':      False,
+                         'DISASM':          False,
+                         'DISASM_INTEL':    False,
+                         'DISASM_ATTSV':    False,
+                         'IFORM':           False
                          }
 
 
@@ -1809,10 +1812,10 @@ class instruction_info_t(partitionable_info_t):
       self.uname = None
       self.ucode = None
       self.comment = None
-      self.exceptions = None      
+      self.exceptions = None
 
       # Default version. Newer versions replace older versions
-      self.version = version 
+      self.version = version
 
       self.category = category
       self.extension = extension
@@ -1821,7 +1824,7 @@ class instruction_info_t(partitionable_info_t):
       self.attributes = None
       self.flags_input = None
       self.flags_info = None  # flag_gen.flags_info_t class
-      
+
       self.iform = None
       self.iform_input = None
       self.iform_num = None
@@ -1875,14 +1878,14 @@ class instruction_info_t(partitionable_info_t):
        if self.uname:
            s = add_str('', 'UNAME', self.uname)
            slist.append(s)
- 
+
        if self.version != 0:
           s = add_str('','VERSION', str(self.version))
           slist.append(s)
-  
+
           s = add_str('','CATEGORY', self.category)
           slist.append(s)
-  
+
           s = add_str('','EXTENSION', self.extension)
           slist.append(s)
           s = add_str('','ISA_SET', self.isa_set)
@@ -1892,8 +1895,8 @@ class instruction_info_t(partitionable_info_t):
           if self.cpl:
               s = add_str('','CPL', self.cpl)
               slist.append(s)
-  
-  
+
+
           if self.attributes:
               s = add_str('','ATTRIBUTES', self.attributes)
               slist.append(s)
@@ -1918,17 +1921,17 @@ class instruction_info_t(partitionable_info_t):
           if self.iform:
               s = add_str('','IFORM', self.iform)
               slist.append(s)
-  
+
           if self.flags_input:
               s = add_str('','FLAGS', self.flags_input)
               slist.append(s)
- 
+
        t = ''
        for op in self.operands_input:
            t = t + op + ' '
        s = add_str('','OPERANDS', t)
        slist.append(s)
-         
+
        slist.append('}\n')
        return slist
 
@@ -1977,7 +1980,7 @@ class instruction_info_t(partitionable_info_t):
                      die("Duplicate token %s in entry:\n\t%s\n" % (token, line))
             structured_input_dict[token] =True
             #msge("FILLING EXTRA = %s" %( str(filling_extra)))
-                  
+
             if token == 'ICLASS':
                self.iclass = rest
                if viclass():
@@ -2020,7 +2023,7 @@ class instruction_info_t(partitionable_info_t):
                   # overwrite the one that was added when we had an
                   # extra pattern.
                   if len(self.extra_operands) == 0:
-                     die("Need to have a PATTERN line before the " + 
+                     die("Need to have a PATTERN line before the " +
                          "OPERANDS line for " + self.iclass)
                   self.extra_operands[-1] = rest.split()
                else:
@@ -2073,12 +2076,12 @@ class instruction_info_t(partitionable_info_t):
             msge("\tReturning...")
          return True
       return False
-   
+
    def add_scalable_attribute(self, scalable_widths, agi):
       """Look for operations that have width codes that are scalable
       width codes (z,v,a,p,p2,s,spw8,spw,spw3,spw2,
       etc. (auto-derived) , and add an attribute SCALABLE"""
-      
+
       scalable = False
 
       for op in self.operands:
@@ -2100,7 +2103,7 @@ class instruction_info_t(partitionable_info_t):
          self.add_attribute(s)
 
 
-   
+
    def add_fixed_base_attribute(self):
       """Look for STACKPUSH/STACKPOP operands and then add an
       attribute that says fixed_base0 or fixed_base1 depending on
@@ -2121,7 +2124,7 @@ class instruction_info_t(partitionable_info_t):
                   pass # skip other fields
       if stack_memop_indx != -1:
          if vattr():
-            msgb("ATTRIBUTE-FOR-STACKOP", 
+            msgb("ATTRIBUTE-FOR-STACKOP",
                  "%s memop index %s" % (self.iclass, stack_memop_indx))
          s  = "FIXED_BASE%d" % stack_memop_indx
          self.add_attribute(s)
@@ -2130,7 +2133,7 @@ class instruction_info_t(partitionable_info_t):
 
    def __str__(self):
       return self.dump_str()
-   
+
    def dump_str(self, pad='', brief=False):
       s = []
       s.append(pad)
@@ -2146,11 +2149,11 @@ class instruction_info_t(partitionable_info_t):
           s.append(" isa_set=%s " % str(self.isa_set))
       s.append("pattern len=%d\n" % len(self.ipattern.bits))
       s.append(" %s ipattern: %s\n" % (pad,self.ipattern.just_bits()) )
-      
+
       if brief:
           return ''.join(s)
       if self.prebindings:
-         s.append('prebindings: \n\t' + 
+         s.append('prebindings: \n\t' +
                   '\n\t'.join( [str(x) for x in list(self.prebindings.values())]) + '\n')
       for op in self.operands:
          s.append(pad)
@@ -2158,7 +2161,7 @@ class instruction_info_t(partitionable_info_t):
          s.append(op.dump_str(pad))
          s.append("\n")
       return ''.join(s)
-        
+
 
 def look_for_scalable_nt(agi, nt_name):
    """Look for a nonterminal that is sensitive to EOSZ. It looks
@@ -2167,7 +2170,7 @@ def look_for_scalable_nt(agi, nt_name):
       gi = agi.generator_dict[nt_name]
    except:
       die("Generator not found for nt_name: %s" % (nt_name))
-      
+
    for rule in gi.parser_output.instructions:
       for b in rule.ipattern.bits:
          if b.token == 'EOSZ':
@@ -2215,7 +2218,7 @@ def rewrite_stack_push(op,memidx,regidx):
    else:
       s.append("SEG1=FINAL_SSEG1():r:SUPP") # note FINAL_SSEG1() ***
    return s
-   
+
 def rewrite_stack_pop(op,memidx,regidx):
    s = []
    #s.append("REG%d=SrSP():rw:SUPP" % (regidx))
@@ -2226,7 +2229,7 @@ def rewrite_stack_pop(op,memidx,regidx):
    else:
       s.append("SEG1=FINAL_SSEG1():r:SUPP") # note FINAL_SSEG1() ***
    return s
-   
+
 
 
 def expand_stack_operand(op, memidx, regidx):
@@ -2238,7 +2241,7 @@ def expand_stack_operand(op, memidx, regidx):
     @param memidx: index of the memop we should use, either 0 or 1.
 
     @type  regidx: integer
-    @param regidx: index of the first register we should use for 
+    @param regidx: index of the first register we should use for
                    the rSP() operand
 
     @rtype: [ strings ]
@@ -2257,9 +2260,9 @@ def expand_stack_operand(op, memidx, regidx):
    if vstack():
       msgb("STACKOPS", str(out))
    return out
-   
 
-    
+
+
 
 def find_max_memidx_and_regidx(operands):
    "find the maximum memidx and regidx"
@@ -2277,7 +2280,7 @@ def find_max_memidx_and_regidx(operands):
       if rnm:
          current_regidx = int(rnm.group('regno'))
          if verbose:
-            msgb("COMPARE REGS", "current %d max %d" % 
+            msgb("COMPARE REGS", "current %d max %d" %
                  ( current_regidx, regidx))
          if current_regidx >= regidx:
             if verbose:
@@ -2312,14 +2315,14 @@ def parse_operand_spec(agi,operand_spec):
        # make new operands based on these strings.
        if new_strings:
           for s in new_strings:
-             new_op = mk_opnd(agi,s) 
+             new_op = mk_opnd(agi,s)
              if new_op:
                  operands.append(new_op)
     #
     ##############################################################
     return (operands, reset_any)
 
-    
+
 ##################################################################
 # Structured input / output of  instructions
 ##################################################################
@@ -2351,7 +2354,7 @@ def remove_instructions(agi):
 def remove_overridden_versions(parser):
    """Remove instructions that have newer versions using a dictionary
    of lists."""
-   d = {} 
+   d = {}
    for ii in parser.instructions:
       if ii.iclass in parser.deleted_instructions:
          continue # drop this record
@@ -2364,7 +2367,7 @@ def remove_overridden_versions(parser):
          elif ii.version > d[ii.iclass][0].version:
             # we have an updated version. drop the old stuff and start over
             del d[ii.iclass]
-            d[ii.iclass] = [ii] 
+            d[ii.iclass] = [ii]
          else:
             pass # drop this record
       else:
@@ -2402,14 +2405,14 @@ def read_input(agi, lines):
       gi = agi.make_generator(nt_name)
       gi.parser_output = parser
       agi.nonterminal_dict.record_nonterminal(nt_name, nt_type)
-      
+
    msge("Nonterminal " + parser.nonterminal_line)
    msge("Nonterminal name " + parser.nonterminal_name)
    lines.pop(0)
 
    # The {...} defined "instruction" patterns must have the substring
    # "INSTRUCTIONS" in their name.
-   
+
    if instructions_pattern.search(parser.nonterminal_name):
        nlines = read_structured_input(agi,
                                       agi.common.options,
@@ -2417,13 +2420,13 @@ def read_input(agi, lines):
                                       lines,
                                       agi.common.state_bits)
    else:
-       nlines = read_flat_input(agi, 
+       nlines = read_flat_input(agi,
                                 agi.common.options,
                                 parser,
                                 lines,
                                 agi.common.state_bits)
    return nlines
-   
+
 
 def read_structured_input(agi, options, parser, lines, state_dict):
    msge("read_structured_input")
@@ -2435,7 +2438,7 @@ def read_structured_input(agi, options, parser, lines, state_dict):
          lines.pop(0)
          continue
       first_line  = slash_expand.expand_all_slashes(first_line)
-              
+
       if udelete_pattern.search(first_line):
          m = udelete_full_pattern.search(first_line)
          uname = m.group('uname')
@@ -2447,8 +2450,8 @@ def read_structured_input(agi, options, parser, lines, state_dict):
          iclass = m.group('iclass')
          parser.deleted_instructions[iclass] = True
          lines.pop(0)
-      
-      
+
+
       elif nonterminal_start_pattern.search(first_line):
          msge("Hit a nonterminal, returning at: " + first_line )
          break
@@ -2473,11 +2476,11 @@ def read_structured_input(agi, options, parser, lines, state_dict):
                else:
 
                   parser.instructions.append(flat_ii)
-                  
-   
+
+
    msge("parser returning with " + str(len(lines)) + ' lines remaining.')
    return lines
-   
+
 ##################################################################
 
 def junk_line(line):
@@ -2503,8 +2506,8 @@ class parser_t(object):
       self.instructions = []
 
       self.deleted_instructions = {}
-      self.deleted_unames = {}      
-      
+      self.deleted_unames = {}
+
       # if epsilon actions result in errors, otherwise_ok is False. If
       # epsilon actions result in no-error, then otherwise_ok should
       # be set to true.
@@ -2515,7 +2518,7 @@ class parser_t(object):
       if self.nonterminal_type != None:
          return True
       return False
-   
+
    def dump_structured(self,fp):
       "Print out the expanded records."
       for ii in self.instructions:
@@ -2531,7 +2534,7 @@ class parser_t(object):
       fp.write("\n")
       self.dump_structured(fp)
 
-         
+
 
 def read_flat_input(agi, options, parser, lines,state_dict):
    """These are the simple format records, one per line. Used for
@@ -2554,7 +2557,7 @@ def read_flat_input(agi, options, parser, lines,state_dict):
       except ValueError:
          die('Could not split line in to 2 pieces based on vertical bar: [' +
              first_line + ']')
-      
+
       (opcode_spec,
        extra_bindings,
        all_bit_infos,
@@ -2565,8 +2568,8 @@ def read_flat_input(agi, options, parser, lines,state_dict):
          parser.otherwise_ok = True # FIXME 2008-09-25 need to change this
                                     #  if 'otherwise' node have RHS support.
          lines.pop(0)
-         continue 
-      
+         continue
+
       operands_input = bindings.split()
       (operands, reset_for_prefix) = parse_operand_spec(agi, operands_input)
       if extra_bindings:
@@ -2588,9 +2591,9 @@ def read_flat_input(agi, options, parser, lines,state_dict):
       pi.reset_for_prefix = reset_for_prefix
 
       parser.instructions.append(pi) # FIXME: instruction is a misnomer here
-      
+
       lines.pop(0)
-      
+
    return lines
 
 
@@ -2600,9 +2603,9 @@ def read_flat_input(agi, options, parser, lines,state_dict):
 
 # $$ graph_node_t
 class graph_node(object):
-   
+
    global_node_num = 0
-   
+
    def __init__(self, token,bitpos):
       self.id =  self.__class__.global_node_num
       #msge("CREATE NODE %d" % (self.id))
@@ -2612,17 +2615,17 @@ class graph_node(object):
 
       # the relative bit position, mod 8, assuming nonterminals return bytes
       self.bitpos_mod8 = bitpos & 7
-      
-      # number of bits we use to decide on the next node. 
+
+      # number of bits we use to decide on the next node.
       self.decider_bits = 0
-      
+
       # number of bits we accept and skip over to get to the next
       # decider-group-of-bits
       self.skipped_bits = 0
 
       # a nonterminal  that follows this node
       self.nonterminal = None
-      
+
       # an operand decision point
       self.operand_decider = None
 
@@ -2634,20 +2637,20 @@ class graph_node(object):
       # errors. When we want to permit epsilon action for prefix-type
       # nonterminals, then we set self.otherwise_ok to True.
       self.otherwise_ok = False
-      
+
       self.next = {}
 
       # The capture function_object_t for the operands we need to
       # capture at this node.
       self.capture_function = None
-      
+
       self.trimmed_values = None
-      
+
    def is_nonterminal(self):
       if self.nonterminal != None:
          return True
       return False
-   
+
    def is_operand_decider(self):
       if self.operand_decider != None:
          return True
@@ -2671,12 +2674,12 @@ class graph_node(object):
             if found_value and found_other:
                return (True, value)
       return (False, None)
-     
+
    def leaf(self):
       if len(self.next) == 0:
          return True
       return False
-     
+
    def dump_str(self,pad=''):
       eol = "\n"
       s =  pad + 'id: ' + str(self.id)
@@ -2704,14 +2707,14 @@ class graph_node(object):
    def dump(self,pad=''):
       msge(self.dump_str(pad))
 
-        
-        
+
+
 
 def new_node(graphnode, token, bitpos):
    node =  graph_node(token,bitpos)
    graphnode.next[token] = node
    return  node
-   
+
 def get_bit(ii,bitpos):
    if bitpos >= len(ii.ipattern.bits):
       return 'badbit'
@@ -2730,10 +2733,10 @@ def collect_required_values(instructions, bitpos):
          if operand_decider.requirement not in d:
             d.append(operand_decider.requirement)
    return d
-   
+
 
 def partition_by_required_values(options, instructions, bitpos, token,
-                                 required_values, state_space, splatter=True, 
+                                 required_values, state_space, splatter=True,
                                  operand_storage_dict=None):
    """Return a dictionary of lists of instructions, split by the
    elements of the required_values list"""
@@ -2767,7 +2770,7 @@ def partition_by_required_values(options, instructions, bitpos, token,
          if operand_decider.token in state_space:
             all_values_for_this_od = state_space[operand_decider.token]
             if vod():
-               msge("NE OD: all values from state space %s" % 
+               msge("NE OD: all values from state space %s" %
                     (str(all_values_for_this_od)))
          else:
             try:
@@ -2777,19 +2780,19 @@ def partition_by_required_values(options, instructions, bitpos, token,
                   #all_values_for_this_od = [ str(x) for x in range(0,nvalues) ]
                   all_values_for_this_od = range(0,nvalues)
                   if vod():
-                     msge("Synthesized values for %s: %s" % 
+                     msge("Synthesized values for %s: %s" %
                           ( operand_decider.token,
                             ", ".join( [ str(x) for x in all_values_for_this_od])))
             except:
-               die("could not find %s in state space dictionary" %  
+               die("could not find %s in state space dictionary" %
                    (operand_decider.token))
 
          if vod():
-            msge("All values for OD: %s" % 
+            msge("All values for OD: %s" %
                  ", ".join( [ str(x) for x in all_values_for_this_od] ))
          for a in all_values_for_this_od:
             all_values[a]=True
-         trimmed_vals = list(filter(lambda x: x != operand_decider.requirement, 
+         trimmed_vals = list(filter(lambda x: x != operand_decider.requirement,
                                all_values_for_this_od))
          if len(trimmed_vals) == 0:
             die("We had a not-equals requirement but did" +
@@ -2806,7 +2809,7 @@ def partition_by_required_values(options, instructions, bitpos, token,
 
    #msge("RETURNING FROM PARTITION: %s" % ( str(d.keys())))
    return (d, list(all_values.keys()) )
-      
+
 
 def all_same_operand_decider(ilist,bitpos):
    """Return false if not all of the next bits are the same
@@ -2820,7 +2823,7 @@ def all_same_operand_decider(ilist,bitpos):
 
       # They can have different required values, but they must be the
       # same deciding token.
-      
+
       if i.ipattern.bits[bitpos].is_operand_decider():
          if last == None:
             last = i.ipattern.bits[bitpos]
@@ -2831,15 +2834,15 @@ def all_same_operand_decider(ilist,bitpos):
    if last:
       return (True, last)
    return (False, None)
-         
-         
+
+
 
 def all_same_nonterminal(ilist,bitpos):
    """Return false if not all of the next bits are the same
    nonterminal, also return nonterminal if True"""
    last_nonterminal = None
    for i in ilist:
-      
+
       plen = len(i.ipattern.bits)
       if bitpos >= plen:
          #msge("Fell off end of bits")
@@ -2862,7 +2865,7 @@ def all_same_nonterminal(ilist,bitpos):
 def move_candidate_od_to_front(bitpos, candidate_od, bit_info_t_list):
    """Move a speicific od names candidate_od from wherever it is in
    the list (after bitpos) to the location bitpos"""
-   
+
    found = False
    for i,b in enumerate(bit_info_t_list[bitpos+1:]):
       if b.is_operand_decider():
@@ -2887,7 +2890,7 @@ def move_candidate_od_to_front(bitpos, candidate_od, bit_info_t_list):
    return found
 
 def renumber_one_ipattern(i):
-    bitpos = 0 
+    bitpos = 0
     for p in i.ipattern.bits:
         p.pbit = bitpos
         bitpos = bitpos + 1
@@ -2903,7 +2906,7 @@ def rearrange_at_conflict(ilist,bitpos):
 
    # FIXME 2008-11-12 Mark Charney: could search for all sequential
    # ODs rather than just one neighboring OD.
-   
+
    candidate_ods = []
    for i in ilist:
       if bitpos >= len(i.ipattern.bits):
@@ -2912,7 +2915,7 @@ def rearrange_at_conflict(ilist,bitpos):
          t = i.ipattern.bits[bitpos].token
          if t not in candidate_ods:
             candidate_ods.append(t)
-            
+
          # look ahead one spot too...
          nbitpos = bitpos+1
          if nbitpos < len(i.ipattern.bits):
@@ -2937,18 +2940,18 @@ def rearrange_at_conflict(ilist,bitpos):
                msge("\tSKIPPING %s inum %d -- already fine" %
                     ( i.get_iclass(), i.inum))
             else:
-               msge("\tREARRANGE needs to juggle: %s inum %d" % 
+               msge("\tREARRANGE needs to juggle: %s inum %d" %
                     ( i.get_iclass(), i.inum))
                # attempt to juggle ODs in i.ipattern.bits to get
                # candidate_od in to bitpos
-               if move_candidate_od_to_front(bitpos, 
-                                             candidate_od, 
+               if move_candidate_od_to_front(bitpos,
+                                             candidate_od,
                                              i.ipattern.bits):
-                  msge("\tREARRANGE one pattern worked for %s inum %d" % 
+                  msge("\tREARRANGE one pattern worked for %s inum %d" %
                        ( i.get_iclass(), i.inum))
                else:
                   retry = True
-                  msge("\tREARRANGE FAILED for %s. Trying again..." % 
+                  msge("\tREARRANGE FAILED for %s. Trying again..." %
                        (candidate_od))
                   break # hit the outer loop
 
@@ -2958,7 +2961,7 @@ def rearrange_at_conflict(ilist,bitpos):
 
    # make sure they are all the same OD at this bitpos now
    candidate_od = None
-   for i in ilist: 
+   for i in ilist:
       if i.ipattern.bits[bitpos].is_operand_decider():
          if candidate_od == None:
             candidate_od = i.ipattern.bits[bitpos].token
@@ -2998,7 +3001,7 @@ def print_split(others,ones,zeros,brief=False):
                   msge( ii.dump_str(brief=brief))
               except:
                   msge( "XUNKNOWN: " + str(ii) )
-         
+
 
 def partition_nodes(ilist,bitpos):
    """return a tuple of lists of nodes whose next bit is zero, one or
@@ -3037,12 +3040,12 @@ def at_end_of_instructions(ilist, bitpos):
          notdone = True
    if done:
       if notdone:
-         msge("Length error: some instructions done and some" + 
+         msge("Length error: some instructions done and some" +
               " are not done simultaneously")
          msge("ilist len = " + str(len(ilist)))
          msge("\n\nILIST:")
          for ii in ilist:
-            msge( 'bitpos:' + str(bitpos) + 
+            msge( 'bitpos:' + str(bitpos) +
                   '  len-pattern:' + str( len(ii.ipattern.bits)))
             if (len(ii.ipattern.bits)) == 0:
                 msge("BAD INST: %s" % ( str(ii)))
@@ -3059,7 +3062,7 @@ def no_dont_cares(instructions, bitpos):
       if i.ipattern.bits[bitpos].is_dont_care():
          return False
    return True
-   
+
 def some_different(instructions,bitpos):
    """Return True if there are ones and zeros and no don't cares,
    nonterminals or operand deciders"""
@@ -3080,12 +3083,12 @@ def some_different(instructions,bitpos):
 def scan_backwards_for_distinguishing_bit(instructions,bitpos):
    """Return a tuple (t/f, bitpos) that says where we can partition
    this node further (when possible)."""
-   
+
    b = bitpos - 1
    while b >= 0:
       if no_dont_cares(instructions,b):
          if some_different(instructions,b):
-            msge("FALLBACK: we can parition on the 1s and 0s at bitpos " + 
+            msge("FALLBACK: we can parition on the 1s and 0s at bitpos " +
                  str(b))
             return (True, b)
       b = b - 1
@@ -3104,9 +3107,9 @@ def convert_splitpos_to_bit_index(graph,splitpos):
          real_bits += 1
    msge("BACKSPLIT  fake bitpos: %d real bitpos: %d\n" % (splitpos, real_bits))
    return real_bits
-         
 
-      
+
+
 
 def back_split_graph(common, graph, bitpos, skipped_bits, splitpos):
    """Partition based on splitpos and then recur in to build_sub_graph
@@ -3125,11 +3128,11 @@ def back_split_graph(common, graph, bitpos, skipped_bits, splitpos):
       die("We didn't have any zeros in the back-split partition")
    if len(ones) == 0:
       die("We didn't have any ones in the back-split partition")
-      
+
    graph.skipped_bits = skipped_bits
    graph.decider_bits = 1
-   graph.back_split_pos = convert_splitpos_to_bit_index(graph,splitpos) 
-   
+   graph.back_split_pos = convert_splitpos_to_bit_index(graph,splitpos)
+
    # zero child node
    znode = new_node(graph,'0',bitpos)
    znode.instructions.extend(zeros)
@@ -3205,9 +3208,9 @@ def build_sub_graph(common, graph, bitpos, skipped_bits):
    # is required to get the nonterminals that may be down stream built
    # in to the graph.
    stop_early = False
-   
+
    if vbuild():
-      msge("[SUBGRAPH BUILD] Token %s ninst %d" % 
+      msge("[SUBGRAPH BUILD] Token %s ninst %d" %
            (str(graph.token), len(graph.instructions)))
       for ii in graph.instructions:
          msge(ii.dump_str('   '))
@@ -3242,7 +3245,7 @@ def build_sub_graph(common, graph, bitpos, skipped_bits):
             return
          else:
             msge("Back-split failed to solve the problem")
-         die("BUILD ERROR: more than one leaf when ran out of bits." + 
+         die("BUILD ERROR: more than one leaf when ran out of bits." +
              " See stdout.")
       graph.skipped_bits = skipped_bits
       return
@@ -3262,7 +3265,7 @@ def build_sub_graph(common, graph, bitpos, skipped_bits):
       msge("Here is what we are considering, bitpos" + str(bitpos) + ":")
       for ii in graph.instructions:
          msge(ii.dump_str('   ')  + '\n')
-         
+
    #####################################################################
 
 
@@ -3273,7 +3276,7 @@ def build_sub_graph(common, graph, bitpos, skipped_bits):
       if iterations > 1:
          die("We should not be trying to resplit things more than once")
       iterations += 1
-         
+
       # Check for identical operand deciders
       (all_same_decider, operand_decider) = \
           all_same_operand_decider(graph.instructions,bitpos)
@@ -3323,7 +3326,7 @@ def build_sub_graph(common, graph, bitpos, skipped_bits):
                      previous_trimmed_values = s
                   if s != previous_trimmed_values:
                      # need to splatter!
-                     msge("X9 need to splatter based on differing " + 
+                     msge("X9 need to splatter based on differing " +
                           "other conditions")
                      need_to_splatter = True
                      break
@@ -3338,7 +3341,7 @@ def build_sub_graph(common, graph, bitpos, skipped_bits):
 
          if not need_to_splatter and previous_trimmed_values:
             if scalar_values.intersection(previous_trimmed_values):
-               msge("X9 need to splatter based on cases overlapping " + 
+               msge("X9 need to splatter based on cases overlapping " +
                     "with scalar dispatch")
                need_to_splatter = True
 
@@ -3362,7 +3365,7 @@ def build_sub_graph(common, graph, bitpos, skipped_bits):
             # replace old partition with splattered partition
             node_partition = new_node_partition
 
-         
+
          # set up the next nodes and give them their instructions.
 
          for k,partition in node_partition.items():
@@ -3383,7 +3386,7 @@ def build_sub_graph(common, graph, bitpos, skipped_bits):
          # build the subgraphs for the children
          for child in graph.next.values():
             # RECUR for operand-decider
-            build_sub_graph(common, child, bitpos, 0) 
+            build_sub_graph(common, child, bitpos, 0)
          return
 
       ####################################################################
@@ -3399,7 +3402,7 @@ def build_sub_graph(common, graph, bitpos, skipped_bits):
          graph.nonterminal = nt
          graph.skipped_bits = skipped_bits
          if vbuild():
-            msge("GRAPHBLD: Nonterminal: " + 
+            msge("GRAPHBLD: Nonterminal: " +
                  str(nt) + " skipped_bits: " + str(skipped_bits))
          # build a new node that follows the nonterminal and give it
          # all the instructions.  The '-' denotes we go there when the
@@ -3421,7 +3424,7 @@ def build_sub_graph(common, graph, bitpos, skipped_bits):
 
       (ones,zeros,others) = partition_nodes(graph.instructions,bitpos)
       if vbuild():
-         s =  "ones %d zeros %d others %d" % (len(ones), 
+         s =  "ones %d zeros %d others %d" % (len(ones),
                                               len(zeros), len(others))
          msge('build_sub_graph ' + s )
 
@@ -3433,7 +3436,7 @@ def build_sub_graph(common, graph, bitpos, skipped_bits):
          if rearrange_at_conflict(graph.instructions, bitpos):
             msge("REARRANGED ODs TO BYPASS PROBLEM at bitpos %d" % bitpos )
             # try resplitting the nodes now that we've juggled stuff
-            continue 
+            continue
 
          else:
             (okay, splitpos) = \
@@ -3445,7 +3448,7 @@ def build_sub_graph(common, graph, bitpos, skipped_bits):
             else:
                # redo this bit (hence bitpos-1) once we split based on
                # splitpos.
-               back_split_graph(common, graph, 
+               back_split_graph(common, graph,
                                 bitpos-1, skipped_bits, splitpos)
                return
       else:
@@ -3461,7 +3464,7 @@ def build_sub_graph(common, graph, bitpos, skipped_bits):
    # so all is not lost, just confused.)
    #del graph.instructions
    #graph.instructions = []
-         
+
    # if there are any others in then, we cannot split on this bit, so
    # just keep going. Similarly, if there are all 1s or all 0s then we
    # just keep going (when skip_constants is True). Only split the
@@ -3479,13 +3482,13 @@ def build_sub_graph(common, graph, bitpos, skipped_bits):
             msge("Duplicating dontcares")
          graph.skipped_bits = skipped_bits
          graph.decider_bits = 1
-         
+
          # zero child node
          znode = new_node(graph,'0',bitpos)
          if len(zeros) > 0:
             znode.instructions.extend(zeros)
          # Add the "don't-care others" to the zeros
-         znode.instructions.extend(others) 
+         znode.instructions.extend(others)
          build_sub_graph(common,znode,bitpos, 0)  # RECUR
 
          # one child node
@@ -3493,12 +3496,12 @@ def build_sub_graph(common, graph, bitpos, skipped_bits):
          if len(ones) > 0:
             onode.instructions.extend(ones)
          # Add the "don't-care others" to the ones
-         onode.instructions.extend(others) 
+         onode.instructions.extend(others)
          build_sub_graph(common,onode,bitpos, 0)  # RECUR
 
       else:
          build_sub_graph(common,graph,bitpos, skipped_bits+1)  # RECUR
-      
+
    elif len(ones) > 0 and len(zeros) == 0:
       # Some one's but no zeros, no others
       if vbuild():
@@ -3508,7 +3511,7 @@ def build_sub_graph(common, graph, bitpos, skipped_bits):
       else:
          graph.skipped_bits = skipped_bits
          graph.decider_bits = 1
-      
+
          onode = new_node(graph,'1',bitpos)
          onode.instructions.extend(ones)
          build_sub_graph(common,onode,bitpos, 0)   # RECUR
@@ -3521,12 +3524,12 @@ def build_sub_graph(common, graph, bitpos, skipped_bits):
       else:
          graph.skipped_bits = skipped_bits
          graph.decider_bits = 1
-      
+
          znode = new_node(graph,'0',bitpos)
          znode.instructions.extend(zeros)
          build_sub_graph(common,znode, bitpos, 0)  # RECUR
    else:
-      # some zeros, some ones -> split it      
+      # some zeros, some ones -> split it
       if vbuild():
          msge("Just 0s and 1s, splitting, building a subgraph")
       graph.skipped_bits = skipped_bits
@@ -3542,8 +3545,8 @@ def build_sub_graph(common, graph, bitpos, skipped_bits):
       onode.instructions.extend(ones)
       build_sub_graph(common,onode,bitpos, 0)  # RECUR
 
-      
-         
+
+
 def build_graph(common, parser_output, operand_storage_dict):
    """Build a graph of the parsed instructions. Return the root"""
    if vgraph_res():
@@ -3575,7 +3578,7 @@ def build_graph(common, parser_output, operand_storage_dict):
       print_resource_usage('build_graph.3')
    return graph
 
-         
+
 def print_graph(options, node, pad =''):
    s = node.dump_str(pad)
    msge(s)
@@ -3583,7 +3586,7 @@ def print_graph(options, node, pad =''):
       s = pad + ' key: ' + str(k)
       msge(s)
       print_graph(options, nxt, pad + '        ')
-   
+
 ############################################################################
 ## $$ OPCAP capturing operands
 ############################################################################
@@ -3608,15 +3611,15 @@ def collect_immediate_operand_bit_positions(options, opnd, ii):
             last_bit_pos[b] = p+1
             found = True
             break
-         
+
       if not found:
-         die("Did not find bit %s of operand %s in instruction %s " % 
+         die("Did not find bit %s of operand %s in instruction %s " %
              (str(b), str(opnd), ii.dump_str()))
 
 ################################
-         
+
 uninteresting_operand_types_list = ['imm_const', 'reg', 'relbr', 'ptr', 'error',
-                                    'nt_lookup_fn', 'mem', 'xed_reset', 
+                                    'nt_lookup_fn', 'mem', 'xed_reset',
                                     'flag', 'agen']
 
 uninteresting_operand_types_dict = \
@@ -3629,7 +3632,7 @@ def decorate_operand(options,opnd,ii):
    operand in this instruction"""
 
    global uninteresting_operand_types_dict
-   
+
    if opnd.type in uninteresting_operand_types_dict:
       pass
    elif opnd.type == 'imm':
@@ -3641,7 +3644,7 @@ def decorate_operand(options,opnd,ii):
       opnd.rightmost_bitpos = max(opnd.bit_positions)
    else:
       die("Unhandled operand type: " + str(opnd))
-         
+
 
 
 def decorate_operands(options,agi):
@@ -3682,7 +3685,7 @@ def find_all_operands(options, node):
          if node.leaf():
             # FIXME: this *was* operands.add(opnd.name)
             # 2007-06-26. Not sure if it was wrong or equivalent.
-            op2set.add(opnd.name) 
+            op2set.add(opnd.name)
          elif opnd.type == 'imm' or opnd.type == 'imm_const' or \
                  opnd.type == 'reg':
             op2set.add(opnd.name)
@@ -3696,7 +3699,7 @@ def collect_instruction_types(agi, master_list):
    for generator in agi.generator_list:
       for ii in generator.parser_output.instructions:
          if field_check(ii, 'iclass'):
-            plist = [] 
+            plist = []
             if field_check(ii, 'attributes'):
                 plist = ii.attributes
 
@@ -3705,12 +3708,12 @@ def collect_instruction_types(agi, master_list):
             else:
                 iclass_string_index = 0
 
-            t = (ii.iclass, ii.extension, ii.category, ii.isa_set, 
-                 plist, 
+            t = (ii.iclass, ii.extension, ii.category, ii.isa_set,
+                 plist,
                  iclass_string_index)
             if ii.iform_enum  in master_list:
                # duplicate iform - check extension and isa-set
-               (oldi, olde, oldc, 
+               (oldi, olde, oldc,
                 olds, oldp, oldisi) = master_list[ii.iform_enum]
                if olde != ii.extension:
                   need_to_die = True
@@ -3719,7 +3722,7 @@ def collect_instruction_types(agi, master_list):
                   msgb("ERROR: ISA_SET ALIASING IN IFORM TABLE", ii.iform_enum)
                   need_to_die = True
                msgb("DUPLICATE IFORM", ii.iform_enum)
-            master_list[ii.iform_enum] = t                  
+            master_list[ii.iform_enum] = t
    if need_to_die:
       mbuild.die("Dieing due to iform aliasing")
 
@@ -3745,7 +3748,7 @@ def collect_tree_depth(node, depths, depth=0):
          depths[cdepth] = 1
    else:
       for child in node.next.values():
-         collect_tree_depth(child, depths, cdepth) 
+         collect_tree_depth(child, depths, cdepth)
    return depths
 
 def collect_ifield(options, node, field, master_list):
@@ -3757,10 +3760,10 @@ def collect_ifield(options, node, field, master_list):
             master_list.append(s)
    for child in node.next.values():
       # FIXME: sloppy return value handling???
-      collect_ifield(options,child, field,master_list) 
+      collect_ifield(options,child, field,master_list)
    return master_list
-         
-            
+
+
 def collect_ofield(options, node, field, master_list):
    """Collect operand field data for enumerations"""
    for ii in node.instructions:
@@ -3770,7 +3773,7 @@ def collect_ofield(options, node, field, master_list):
             if s != None and s not in master_list:
                master_list[s] = True
    for child in node.next.values():
-      collect_ofield(options,child, field,master_list) 
+      collect_ofield(options,child, field,master_list)
 
 def collect_ofield_operand_type(options, node, field, master_list):
    """Collect operand type enumeration data"""
@@ -3782,9 +3785,9 @@ def collect_ofield_operand_type(options, node, field, master_list):
                if s != None and s not in master_list:
                    master_list[s] = True
    for child in node.next.values():
-       collect_ofield_operand_type(options,child, field,master_list) 
+       collect_ofield_operand_type(options,child, field,master_list)
 
-      
+
 def collect_ofield_name_type(options, node, field, master_list):
    """Collect operand field data for enumerations"""
    for ii in node.instructions:
@@ -3795,9 +3798,9 @@ def collect_ofield_name_type(options, node, field, master_list):
             if s not in master_list:
                master_list[s]=type
    for child in node.next.values():
-      collect_ofield_name_type(options,child, field,master_list) 
+      collect_ofield_name_type(options,child, field,master_list)
 
-         
+
 
 def collect_attributes_pre(options, node,  master_list):
     collect_attributes(options, node,  master_list)
@@ -3806,8 +3809,8 @@ def collect_attributes_pre(options, node,  master_list):
     for attr in [ 'MASKOP_EVEX', 'MASK_AS_CONTROL' ]:
         if attr not in master_list:
             master_list.append(attr)
-    
-    
+
+
 def collect_attributes(options, node,  master_list):
    """Collect all attributes"""
    for ii in node.instructions:
@@ -3820,7 +3823,7 @@ def collect_attributes(options, node,  master_list):
             elif s != None and s not in master_list:
                master_list.append(s)
    for nxt in node.next.values():
-      collect_attributes(options,nxt, master_list) 
+      collect_attributes(options,nxt, master_list)
 
 
 idata_files = 0
@@ -3832,43 +3835,43 @@ def write_instruction_data(agi, idata_dict):
    idata_files += 1
    if idata_files > 1:
        die("Not handled: appending ot idata.txt file")
-           
-   fe = xed_file_emitter_t(agi.common.options.xeddir, 
-                           agi.common.options.gendir, 
-                           'idata.txt', 
+
+   fe = xed_file_emitter_t(agi.common.options.xeddir,
+                           agi.common.options.gendir,
+                           'idata.txt',
                            shell_file=True)
    fe.start(full_header=False)
-   
+
    kys = list(idata_dict.keys())
    kys.sort()
-   s = "#%-19s %-15s %-15s %-30s %-20s %s\n" % ("iclass", 
-                                                "extension", 
-                                                "category", 
-                                                "iform", 
+   s = "#%-19s %-15s %-15s %-30s %-20s %s\n" % ("iclass",
+                                                "extension",
+                                                "category",
+                                                "iform",
                                                 "isa_set",
                                                 'attributes')
    fe.write(s)
    for iform in kys:
-      (iclass,extension,category,isa_set, plist, 
+      (iclass,extension,category,isa_set, plist,
                               iclass_string_index) = idata_dict[iform]
       if plist:
           attributes = ":".join(plist)
       else:
           attributes = 'INVALID'
-      s = "%-19s %-15s %-15s %-30s %-20s %s\n" % (iclass, 
-                                                  extension, 
-                                                  category, 
-                                                  iform, 
+      s = "%-19s %-15s %-15s %-30s %-20s %s\n" % (iclass,
+                                                  extension,
+                                                  category,
+                                                  iform,
                                                   isa_set,
                                                   attributes)
       fe.write(s)
    fe.close()
-   
+
 def attr_dict_keyfn(a):
     return a[0]
 
-def write_attributes_table(agi, odir): 
-   fn = 'xed-attributes-init.c' 
+def write_attributes_table(agi, odir):
+   fn = 'xed-attributes-init.c'
    if vattr():
        msgb("Writing attributes file", fn)
    f = agi.common.open_file(fn, start=False)
@@ -3892,7 +3895,7 @@ def write_attributes_table(agi, odir):
    #  separated list of attributes that we'll use to manufacture the
    #  initialization equations.
    if len(agi.attributes_ordered) >= 65536:
-       die("Too many attributes combinations for the 16b index used" + 
+       die("Too many attributes combinations for the 16b index used" +
            " in the xed_inst_t data structure." +
            " Please report this to the SDE/XED team.")
 
@@ -3907,29 +3910,29 @@ def write_attributes_table(agi, odir):
    f.close()
 
 def write_quick_iform_map(agi,odir,idata_dict):
-   fn = 'xed-iform-map-init.c' 
+   fn = 'xed-iform-map-init.c'
    f = agi.common.open_file(fn, start=False)
    f.add_misc_header("#include \"xed-iform-map.h\"")
    f.start()
 
    # FIXME: declare this type
-   f.write("\nconst xed_iform_info_t xed_iform_db[XED_IFORM_LAST] = {\n") 
+   f.write("\nconst xed_iform_info_t xed_iform_db[XED_IFORM_LAST] = {\n")
    first = True
    for (iclass,iform_num,iform) in agi.iform_tuples:
       try:
          (x_iclass,extension,category,isa_set,
-          plist, 
+          plist,
           iclass_string_index) = idata_dict[iform]
       except:
-          (x_iclass,extension,category,isa_set, 
-           plist, 
-           iclass_string_index) = ('INVALID', 
+          (x_iclass,extension,category,isa_set,
+           plist,
+           iclass_string_index) = ('INVALID',
                                    'INVALID',
-                                   'INVALID', 
-                                   'INVALID', 
-                                   None, 
+                                   'INVALID',
+                                   'INVALID',
+                                   None,
                                    0) # FIXME BADNESS
-         
+
       if first:
          first = False
       else:
@@ -3939,17 +3942,17 @@ def write_quick_iform_map(agi,odir,idata_dict):
       qual_extension = "XED_EXTENSION_%s" % (extension.upper())
       qual_isa_set = "XED_ISA_SET_%s" % (isa_set.upper())
       t = '/* %29s */ {  (xed_uint16_t) %25s, (xed_uint8_t) %22s, (xed_uint8_t)%20s, (xed_uint16_t)%25s, (xed_uint16_t)%4d }' % \
-            (iform, 
-             qual_iclass, 
-             qual_category, 
-             qual_extension, 
-             qual_isa_set, 
+            (iform,
+             qual_iclass,
+             qual_category,
+             qual_extension,
+             qual_isa_set,
              iclass_string_index)
       f.write(t)
    f.write("\n};\n")
 
    f.close()
-   
+
 def collect_graph_enum_info(agi,graph):
    # we ignore the return values because we don't need them. The agi
    # fields get written by the collect*() functions.
@@ -3979,7 +3982,7 @@ def key_invalid_first(x):
     if x == 'INVALID':
         # space is first printable character in ascii table and should
         # not show up in our usage.
-        return ' ' 
+        return ' '
     return x
 
 
@@ -3996,7 +3999,7 @@ class rep_obj_t(object):
         self.no_rep_iclass = None
         self.no_rep_indx = None
 
-        
+
 def repmap_emit_code(agi, plist, kind, hash_fn):
     """Emit table that implements the required mapping of iclasses. plist
     is an array of (key,value) pairs. kind is one of repe, repne, rep
@@ -4024,7 +4027,7 @@ def repmap_emit_code(agi, plist, kind, hash_fn):
     else:
         array_limit = 2*(mx+1)  # make room for input key validation
     fo.add_code('const xed_uint16_t lu_table[{}] = {{'.format(array_limit))
-    
+
     hashes = list(t.keys())
     hashes.sort()
 
@@ -4039,7 +4042,7 @@ def repmap_emit_code(agi, plist, kind, hash_fn):
             fo.add_code( '/* {} -> {} */ {},'.format(k,h,v))
         else:
             fo.add_code( '/* {} -> {} */ {}, {},'.format(k,h, k,v))
-            
+
     fo.add_code_eol('}')
     fo.add_code_eol('const xed_uint_t key = (xed_uint_t)iclass')
     fo.add_code_eol('const xed_uint_t hash = {}'.format(hash_fn.emit_cexpr()))
@@ -4095,7 +4098,7 @@ def emit_iclass_rep_ops(agi):
     # make a list of keys for the norep-to-whatever hash functions
     no_rep_keys = uniqueify( [x.no_rep_indx for x in repobjs])
     no_rep_keys.sort()
-        
+
     msge("NOREP KEYS: {}".format(str(no_rep_keys)))
     msge("REP KEYS: {}".format(str(keys)))
 
@@ -4131,7 +4134,7 @@ def emit_iclass_rep_ops(agi):
                 plist.append((r.no_rep_indx, r.indx))
         fo = repmap_emit_code(agi, plist, kind, all_fn['norepinst'])
         functions.append(fo)
-        
+
     # emit the 1 function that maps from rep/repe/repne -> norep version
     plist = []
     for r in repobjs:
@@ -4143,7 +4146,7 @@ def emit_iclass_rep_ops(agi):
     for fn in functions:
         cfp.write(fn.emit())
     cfp.close()
-            
+
 ##############################################################################
 
 def emit_iclass_enum_info(agi):
@@ -4154,7 +4157,7 @@ def emit_iclass_enum_info(agi):
    add_invalid(iclasses)
 
    # 2...9  # omitting NOP1
-   iclasses.extend( [ "NOP%s" % (str(x)) for x in  range(2,10)]) 
+   iclasses.extend( [ "NOP%s" % (str(x)) for x in  range(2,10)])
 
    iclasses = uniqueify(iclasses)
    # sort each to make sure INVALID is first
@@ -4164,16 +4167,16 @@ def emit_iclass_enum_info(agi):
    agi.iclasses_enum_order = iclasses
    i_enum =  enum_txt_writer.enum_info_t(iclasses, xeddir, gendir,
                                          'xed-iclass',
-                                         'xed_iclass_enum_t', 
+                                         'xed_iclass_enum_t',
                                          'XED_ICLASS_',
                                          cplusplus=False)
-   
+
    i_enum.print_enum()
    i_enum.run_enumer()
    agi.add_file_name(i_enum.src_full_file_name)
    agi.add_file_name(i_enum.hdr_full_file_name, header=True)
    agi.all_enums['xed_iclass_enum_t'] = iclasses
-   
+
 def power2(x):
    """Return a list of the powers of 2 from 2^0... 2^x"""
    if x == 0:
@@ -4182,7 +4185,7 @@ def power2(x):
    for p in range(0,x):
       ret.append(2**p)
    return ret
-      
+
 max_attributes=0
 
 def emit_attributes_table(agi, attributes):
@@ -4201,7 +4204,7 @@ def emit_attributes_table(agi, attributes):
    cfp.write('\n};\n')
    cfp.close()
 
-   
+
 def emit_enum_info(agi):
    """Emit major enumerations based on stuff we collected from the
    graph."""
@@ -4211,17 +4214,17 @@ def emit_enum_info(agi):
    operand_types = [ s.upper() for s in agi.operand_types.keys()]
    operand_widths = [ s.upper() for s in agi.operand_widths.keys()]
 
-   operand_names = [ s.upper() for s in 
+   operand_names = [ s.upper() for s in
                      list(agi.operand_storage.get_operands().keys()) ]
    msge("OPERAND-NAMES " + " ".join(operand_names))
 
-   
+
    extensions = [ s.upper() for s in agi.extensions]
    categories = [ s.upper() for s in agi.categories]
    attributes = [ s.upper() for s in agi.attributes]
    # remove the things with equals signs
    attributes = list(filter(lambda s: s.find('=') == -1 ,attributes))
-   
+
 
    # add an invalid entry to each in the first spot if it is not
    # already in the list. Sometimes it is there already, so we must
@@ -4237,11 +4240,11 @@ def emit_enum_info(agi):
 
    nonterminals.sort(key=key_invalid_first)
    nt_enum =  enum_txt_writer.enum_info_t(nonterminals, xeddir, gendir,
-                                          'xed-nonterminal', 
+                                          'xed-nonterminal',
                                           'xed_nonterminal_enum_t',
                                           'XED_NONTERMINAL_',
                                           cplusplus=False)
-   
+
    #For xed3 we want to dump a C mapping nt_enum -> nt_capture_function
    #for that matter we want a mapping:
    #nt_enum_numeric_value -> nt_name
@@ -4249,7 +4252,7 @@ def emit_enum_info(agi):
    upper_dict = {}
    for nt_name in agi.nonterminal_dict.keys():
        nt_name_upper = nt_name.upper()
-       upper_dict[nt_name_upper] = nt_name 
+       upper_dict[nt_name_upper] = nt_name
    for i,upper_nt in enumerate(nonterminals):
        if i == 0:
            continue #no nt_name for invalid guy
@@ -4259,22 +4262,22 @@ def emit_enum_info(agi):
    operand_names.sort()
    add_invalid(operand_names)
    on_enum = enum_txt_writer.enum_info_t(operand_names, xeddir, gendir,
-                                         'xed-operand', 
-                                         'xed_operand_enum_t', 
+                                         'xed-operand',
+                                         'xed_operand_enum_t',
                                          'XED_OPERAND_',
                                          cplusplus=False)
    #for xed3 we want to create xed3_operand_struct_t
    #and it would be nice to order struct members in the
    #operand_enum order
    agi.xed3_operand_names = operand_names
-   
+
    operand_types.sort(key=key_invalid_first)
    ot_enum = enum_txt_writer.enum_info_t(operand_types, xeddir, gendir,
-                                         'xed-operand-type', 
+                                         'xed-operand-type',
                                          'xed_operand_type_enum_t',
                                          'XED_OPERAND_TYPE_',
                                          cplusplus=False)
-   
+
    attributes.sort(key=key_invalid_first)
    lena = len(attributes)
    attributes_list = ['INVALID']
@@ -4293,26 +4296,26 @@ def emit_enum_info(agi):
        agi.sorted_attributes_dict[a] = i
 
    at_enum = enum_txt_writer.enum_info_t(attributes_list, xeddir, gendir,
-                                         'xed-attribute', 
+                                         'xed-attribute',
                                          'xed_attribute_enum_t',
                                          'XED_ATTRIBUTE_',
                                          cplusplus=False)
-   
+
 
    categories.sort(key=key_invalid_first)
    c_enum = enum_txt_writer.enum_info_t(categories, xeddir, gendir,
                                         'xed-category',
-                                        'xed_category_enum_t', 
+                                        'xed_category_enum_t',
                                         'XED_CATEGORY_',
                                         cplusplus=False)
-   
+
    extensions.sort(key=key_invalid_first)
    e_enum = enum_txt_writer.enum_info_t(extensions, xeddir, gendir,
                                         'xed-extension',
-                                        'xed_extension_enum_t', 
+                                        'xed_extension_enum_t',
                                         'XED_EXTENSION_',
                                         cplusplus=False)
-   
+
    enums = [ nt_enum, on_enum, ot_enum, at_enum,
              # ow_enum,
              c_enum, e_enum ]
@@ -4324,7 +4327,7 @@ def emit_enum_info(agi):
       agi.add_file_name(e.src_full_file_name)
       agi.add_file_name(e.hdr_full_file_name,header=True)
 
-   
+
 ############################################################################
 
 def emit_code(f,s):
@@ -4361,7 +4364,7 @@ def get_inst_from_node(node):
    #extracted.
 
    return ii
-   
+
 ############################################################################
 def compute_iform(options,ii, operand_storage_dict):
    """These are really the iforms."""
@@ -4378,9 +4381,9 @@ def compute_iform(options,ii, operand_storage_dict):
             msge("IFORM SKIPPING SUPPRESSED %s" % (operand.name))
 
       elif operand.type == 'nt_lookup_fn':
-         s = operand.lookupfn_name_base 
+         s = operand.lookupfn_name_base
          if operand.oc2 and s not in ['X87'] :
-            if operand.oc2 == 'v' and s[-1] == 'v': 
+            if operand.oc2 == 'v' and s[-1] == 'v':
                pass # avoid duplicate v's
             else:
                s += operand.oc2
@@ -4411,7 +4414,7 @@ def compute_iform(options,ii, operand_storage_dict):
    if viform():
       msgb("IFORMX", "%s: %s" % (ii.iclass, "_".join(iform)))
    return tuple(iform)
-      
+
 
 def compute_iforms(options, gi, operand_storage_dict):
    """Classify the operand patterns"""
@@ -4454,7 +4457,7 @@ def compute_iforms(options, gi, operand_storage_dict):
          dups = []
          for iform in iformlist:
             if iform in str_iforms:
-               dups.append(iform)            
+               dups.append(iform)
             else:
                str_iforms[iform]=True
 
@@ -4475,7 +4478,7 @@ class code_gen_dec_args_t(object):
 
 operand_max=0
 
-def code_gen_itable_operand(agi, 
+def code_gen_itable_operand(agi,
                             data_table_file,
                             operand):
    """Emit code for one opnds.operand_info_t operand"""
@@ -4496,10 +4499,10 @@ def code_gen_itable_operand(agi,
    x_rw = None
    x_oc2 = None
    x_type = None
-   x_xtype = None  
+   x_xtype = None
    x_imm_nt_reg = '0'
 
-   x_name = 'XED_OPERAND_%s' % operand.name.upper() 
+   x_name = 'XED_OPERAND_%s' % operand.name.upper()
 
    if operand.type == 'nt_lookup_fn':
       x_imm_nt_reg = 'XED_NONTERMINAL_' + operand.lookupfn_name.upper()
@@ -4510,8 +4513,8 @@ def code_gen_itable_operand(agi,
    elif operand.type == 'flag': # FIXME: not used
       x_imm_nt_reg = operand.bits
 
-   try:   
-       x_vis  = 'XED_OPVIS_%s' % operand.visibility.upper() 
+   try:
+       x_vis  = 'XED_OPVIS_%s' % operand.visibility.upper()
        x_type = 'XED_OPERAND_TYPE_%s' % operand.get_type_for_emit()
 
        #
@@ -4521,7 +4524,7 @@ def code_gen_itable_operand(agi,
        if operand.xtype == None:
            operand.xtype = 'int'
        x_xtype ='XED_OPERAND_XTYPE_%s' % operand.xtype.upper()
-       
+
        x_rw   = 'XED_OPERAND_ACTION_%s' % operand.rw.upper()
        x_cvt_index = str(operand.cvt_index)
    except:
@@ -4532,14 +4535,14 @@ def code_gen_itable_operand(agi,
    else:
       try:
           if operand.type == 'nt_lookup_fn':
-              x_oc2 ='XED_OPERAND_WIDTH_%s' % ( 
+              x_oc2 ='XED_OPERAND_WIDTH_%s' % (
                   agi.extra_widths_nt[operand.lookupfn_name].upper() )
           elif operand.type == 'reg':
               tname = re.sub('XED_REG_', '', operand.bits)
-              x_oc2 ='XED_OPERAND_WIDTH_%s' % ( 
+              x_oc2 ='XED_OPERAND_WIDTH_%s' % (
                   agi.extra_widths_reg[tname].upper() )
           elif operand.type == 'imm_const':
-              x_oc2 ='XED_OPERAND_WIDTH_%s' % ( 
+              x_oc2 ='XED_OPERAND_WIDTH_%s' % (
                   agi.extra_widths_imm_const[operand.name].upper() )
           else:
               mbuild.msgb("INVALID WIDTH CODE", str(operand))
@@ -4547,18 +4550,18 @@ def code_gen_itable_operand(agi,
       except:
           mbuild.msgb("INVALID WIDTH CODE", str(operand))
           x_oc2 ='XED_OPERAND_WIDTH_INVALID'
-          
+
    if operand.type == 'nt_lookup_fn':
        nt = '1'
    else:
        nt = '0'
-   args = [ x_name, x_vis, x_rw, x_oc2, x_type, x_xtype, 
+   args = [ x_name, x_vis, x_rw, x_oc2, x_type, x_xtype,
             x_cvt_index, x_imm_nt_reg, nt ]
 
    try:
       #msgb("X_NAME", x_name)
       s_args = ",".join(args)
-      data_table_file.add_code( '/*%4d*/ XED_DEF_OPND(%s),' % 
+      data_table_file.add_code( '/*%4d*/ XED_DEF_OPND(%s),' %
                                 (this_operand, s_args) )
    except:
       die("Bad token in list: %s" % (str(args)))
@@ -4571,7 +4574,7 @@ def memorize_attributes_equation(agi, attr_string_or):
     except:
         p = agi.attr_next_pos
         if vattr():
-            msgb("Memorizing attribute", 
+            msgb("Memorizing attribute",
                  "%d -> %s" % (p, attr_string_or))
 
         agi.attributes_dict[attr_string_or] = p
@@ -4580,7 +4583,7 @@ def memorize_attributes_equation(agi, attr_string_or):
 
 
 
-def make_one_attribute_equation(attr_grp,basis):                 
+def make_one_attribute_equation(attr_grp,basis):
     one = '((xed_uint64_t)1)'
     attr_string_or = None
     for a in attr_grp:
@@ -4595,7 +4598,7 @@ def make_one_attribute_equation(attr_grp,basis):
             attr_string_or = rebase
 
     return attr_string_or
-    
+
 def lookup_attr(agi, attr):
     try:
         return agi.sorted_attributes_dict[attr]
@@ -4607,7 +4610,7 @@ def partition_attributes(agi, attr):
     ordinality.  Return a list of groups. 0..63 are in one group,
     64...127 in the next, etc.
     """
-    
+
     d = { 0:[], 1:[] }
     #msgb("PARTITIONING ATTRIBUTES", '[%s]' % (",".join(attr)))
     for a in attr:
@@ -4618,7 +4621,7 @@ def partition_attributes(agi, attr):
         except:
             d[b] = [a]
     return d
-    
+
 
 def make_attributes_equation(agi,ii):
    """Make a unique key representing the attributes of this instruction"""
@@ -4687,7 +4690,7 @@ def find_common_operand_sequences(agi):
     unique_ids first. """
 
     global global_operand_table_id # counter of # of operands
-    global global_oid_sequences 
+    global global_oid_sequences
     global global_max_operand_sequences
     global global_oid_sequence_id_to_oid_list
     next_oid_seqeuence = 0
@@ -4723,7 +4726,7 @@ def find_common_operand_sequences(agi):
     for k in global_oid_sequences.keys():
         n = n + len(k.lst)
     global_max_operand_sequences = n
-    msgb("Number of required operand sequence pointers", 
+    msgb("Number of required operand sequence pointers",
          str(global_max_operand_sequences))
     msgb("Number of reused operand sequence pointers", str(reused))
     msgb("Number of required operands", str(global_operand_table_id))
@@ -4756,7 +4759,7 @@ def code_gen_unique_operands(agi):
 max_operand_count = 0
 global_final_inum = 0
 global_emitted_zero_inum = False
-def code_gen_instruction(agi, options, ii, state_dict, fo, 
+def code_gen_instruction(agi, options, ii, state_dict, fo,
                          nonterminal_dict, operand_storage_dict):
    """Emit code for one instruction entry"""
    global max_operand_count
@@ -4775,12 +4778,12 @@ def code_gen_instruction(agi, options, ii, state_dict, fo,
 
    has_iclass =  field_check(ii,'iclass')
    if verb1():
-      s = "code_gen_instruction - inum: " + str(ii.inum) + ' ' 
+      s = "code_gen_instruction - inum: " + str(ii.inum) + ' '
       if has_iclass:
          s += ii.iclass
       else:
          s += 'no-iclass'
-      msge( s) 
+      msge( s)
 
    # print the operands - separate table with 'index & count" pointers
    # in this table
@@ -4833,7 +4836,7 @@ def code_gen_instruction(agi, options, ii, state_dict, fo,
       args.append(cpl)
       args.append('XED_IFORM_INVALID')
 
-         
+
    #if field_check(ii,'ucode') and ii.ucode:
    #   args.append(str(ii.ucode))
    #else:
@@ -4844,14 +4847,14 @@ def code_gen_instruction(agi, options, ii, state_dict, fo,
    args.append(str(operand_count))
    if operand_count > max_operand_count:
        max_operand_count = operand_count
-   
+
    args.append(str(flgrec))
    if complex:
       flagtype = '1'
    else:
       flagtype = '0'
    args.append(flagtype)
-   
+
    args.append(str(attributes_index))
    if field_check(ii,'exceptions') and ii.exceptions:
        args.append('XED_EXCEPTION_' + ii.exceptions)
@@ -4859,7 +4862,7 @@ def code_gen_instruction(agi, options, ii, state_dict, fo,
        args.append('XED_EXCEPTION_INVALID')
 
    s_args = ",".join(args)
-   
+
    fp.add_code( '/*%4d*/ XED_DEF_INST(%s),' % (ii.inum, s_args) )
 
 
@@ -4870,7 +4873,7 @@ class table_init_object_t(object):
    def __init__(self, file_name, function_name):
       self.file_name_prefix = file_name
       self.function_name_prefix = function_name
-      
+
       self.fp = None # file pointer
       self.fo = None # function_object_t
       self.init_functions = []
@@ -4878,21 +4881,21 @@ class table_init_object_t(object):
 
    def get_init_functions(self):
       return self.init_functions
-   
+
    def get_fo(self,gi):
       if not self.fp:
          # make a new output file and new function obj if we don't
          # already have one
          n = str(len(self.init_functions))
-         self.fp = gi.common.open_file(self.file_name_prefix + n + '.c', 
+         self.fp = gi.common.open_file(self.file_name_prefix + n + '.c',
                                        start=False)
          self.fp.start()
-         
+
          full_function_name = self.function_name_prefix + n
          self.fo = function_object_t(full_function_name,"void")
          self.init_functions.append(self.fo)
       return self.fo
-   
+
    def check_file(self):
       if self.fo:
          if self.fo.lines() >= self.max_lines_per_file:
@@ -4903,7 +4906,7 @@ class table_init_object_t(object):
 
             self.fo = None
             self.fp = None
-         
+
    def finish_fp(self):
       # write anything that didn't get emitted already
       if self.fp:
@@ -4915,9 +4918,9 @@ class table_init_object_t(object):
          self.fp = None
 
 
-   
-   
-   
+
+
+
 def code_gen_instruction_table(agi, gi, itable_init, nonterminal_dict,
                                operand_storage_dict):
    """Emit a table of all instructions. itable_init is a
@@ -4935,9 +4938,9 @@ def code_gen_instruction_table(agi, gi, itable_init, nonterminal_dict,
                            fo,
                            nonterminal_dict,
                            operand_storage_dict)
-      
+
       itable_init.check_file()
-      
+
 
 def rewrite_default_operand_visibilities(generator,
                                          operand_field_dict):
@@ -4955,7 +4958,7 @@ def rewrite_default_operand_visibilities(generator,
                if vopvis():
                   msge("OPVIS-DELTA: " + opnd.name + " to " + new_vis )
                opnd.visibility = new_vis
-               
+
 #################################################################
 def emit_string_table(agi, iclass_strings):
 
@@ -4965,17 +4968,17 @@ def emit_string_table(agi, iclass_strings):
     f.start()
     s = 'char const* const xed_iclass_string[XED_ICLASS_NAME_STR_MAX] = {\n'
     f.write(s)
-    for i in iclass_strings:        
+    for i in iclass_strings:
         f.write('"%s",\n' % (i))
     f.write('};\n')
     f.close()
-        
+
 
 def collect_iclass_strings(agi):
     """We collect the disasm strings in pairs. One for Intel, One for
     ATT SYSV syntax"""
     iclass_strings = ['invalid','invalid']
-    
+
     # string table indexed by intel syntax dotted with the att syntax
     st = { 'invalid.invalid': 0 }
     n = 2
@@ -4986,7 +4989,7 @@ def collect_iclass_strings(agi):
         for ii in generator.parser_output.instructions:
             if field_check(ii,'disasm_intel'):
                 if not field_check(ii,'disasm_att'):
-                    die("Missing att syntax when intel sytnax" + 
+                    die("Missing att syntax when intel sytnax" +
                         " is provided for %s" % (ii.iclass))
             if field_check(ii,'disasm_att'):
                 if not field_check(ii,'disasm_intel'):
@@ -5034,9 +5037,9 @@ def compress_iform_strings(values):
                 b = b_indx
                 o = 0
                 b_indx += 1
-        # store the base,operand_sig pair 
+        # store the base,operand_sig pair
         h[int(index)] = (b,o)
-        
+
     print("XZ: NTUPLES {} BASES {}  OPERAND_SIGS {}".format(len(values),
                                                             len(bases),
                                                             len(operand_sigs)))
@@ -5070,7 +5073,7 @@ def compress_iform_strings(values):
         f.write( '/* {} */ {{ {},{} }},\n'.format(i,a,b))
     f.write('};\n')
 
-        
+
 def generate_iform_enum(agi,options,values):
    # values are a list of 3 tuples (iform string, index, comment) and
    # the comments are generally empty strings.
@@ -5094,11 +5097,11 @@ def generate_iform_enum(agi,options,values):
 def generate_iform_first_last_enum(agi,options,values):
    enum =  enum_txt_writer.enum_info_t(values,
                                        options.xeddir, options.gendir,
-                                       'xed-iformfl', 
-                                       'xed_iformfl_enum_t', 
+                                       'xed-iformfl',
+                                       'xed_iformfl_enum_t',
                                        'XED_IFORMFL_',
                                        cplusplus=False,
-                                       extra_header = ['xed-common-hdrs.h', 
+                                       extra_header = ['xed-common-hdrs.h',
                                                        'xed-iclass-enum.h'],
                                        upper_case=False,
                                        string_convert=-1)
@@ -5143,7 +5146,7 @@ def collect_and_emit_iforms(agi,options):
 
 
    agi.iform_tuples = vtuples
-   
+
    # number the tuples from 0
    ntuples = []
    for i,v in enumerate(vtuples):
@@ -5182,7 +5185,7 @@ def collect_and_emit_iforms(agi,options):
 
    # rip off first two fields of vtuples
    first_last_tuples = [ x[2:] for x in  first_last_tuples]
-   generate_iform_first_last_enum(agi,options,first_last_tuples)   
+   generate_iform_first_last_enum(agi,options,first_last_tuples)
 
    #emit  imax in global iclass order for data-initialization!
    cfp = agi.open_file('xed-iform-max.c')
@@ -5207,7 +5210,7 @@ def collect_and_emit_iforms(agi,options):
    cfp.write('\n};\n')
 
 
-   cfp.write('const xed_uint32_t' + 
+   cfp.write('const xed_uint32_t' +
              ' xed_iform_first_per_iclass_table[XED_ICLASS_LAST] = {\n')
    first = True
    niform = 0 # total number of iforms
@@ -5225,11 +5228,11 @@ def collect_and_emit_iforms(agi,options):
    cfp.write('\n};\n')
 
    cfp.close()
-   
+
    global global_max_iforms_per_iclass
    global_max_iforms_per_iclass = gmax
 
-   
+
 ############################################################################
 
 def relabel_itable(agi):
@@ -5283,7 +5286,7 @@ def merge_child_nodes(options,node):
    # bit_pos* becomes a bigger range
    # more "next" nodes.
    tnode = {}
-   for k,child in node.next.items():      # children  # MERGING 
+   for k,child in node.next.items():      # children  # MERGING
       for j in child.next.keys():  # grandchildren
          bigkey = str(k) + str(j)
          if vmerge():
@@ -5292,7 +5295,7 @@ def merge_child_nodes(options,node):
          tnode[bigkey] = child.next[j]
    # overwrite the current nodes next pointers:
    node.next = tnode
-            
+
    # increment number of decider bits
    node.decider_bits = node.decider_bits + 1
    if vmerge():
@@ -5307,13 +5310,13 @@ def merge_nodes(options,node):
    # is not a leaf, consider merging them.
 
    #FIXME: must not merge across state bits.
-   if (not node.is_nonterminal() and 
-       not node.leaf() and 
+   if (not node.is_nonterminal() and
+       not node.leaf() and
        not node.is_operand_decider()):
       merging = True
       while merging:
          all_match = True
-         decider_bits = [ node.next[k].decider_bits for k in 
+         decider_bits = [ node.next[k].decider_bits for k in
                           list(node.next.keys()) ]
          if not all_the_same(decider_bits):
             if vmerge():
@@ -5332,28 +5335,28 @@ def merge_nodes(options,node):
             msge("Stopping child nodes with 8 decider bits")
             break
          if vmerge():
-            msge("PREMRG node decider " + 
+            msge("PREMRG node decider " +
                  "bits= %d child decider bits= %d bitpos_mod8= %d\n" %
                  ( node.decider_bits, decider_bits[0], node.bitpos_mod8))
 
          # FIXME: the following is not right. We want the bitpos_mod8
          # of the child because that is what we are merging with the
          # grandchild. We also don't care about the decider its of the parent.
-         
+
          # FIXME: we are not updating the bitpos_mod8 of the children
          # when we merge them.
 
          # NOTE: IT IS BETTER NOT DO DO THIS TEST AT ALL. THE GRAPH IS
          # MUCH SMALLER.  but more 'next' nodes, which are much
          # smaller. so that is good!
-         
+
          # Do not want to merge across byte boundaries.
          #if node.decider_bits + decider_bits[0] + node.bitpos_mod8 > 8:
          #if node.decider_bits + decider_bits[0] + node.bitpos_mod8 > 8:
          #   msge("Stopping child node merging at a byte boundary")
          #   break
-         
-            
+
+
          # look at all the next nodes
          for child in node.next.values():
             if child.back_split_pos != None:
@@ -5368,18 +5371,18 @@ def merge_nodes(options,node):
                break
             if child.decider_bits == 0: # FIXME: WHY WOULD THIS HAPPEN?
                if vmerge():
-                  msge("Not merging because zero decider bits follow: " + 
+                  msge("Not merging because zero decider bits follow: " +
                        str(child.decider_bits))
                   msge("\tChildNode:\n" + child.dump_str('\t'))
                all_match = False
                break
-            if child.skipped_bits != 0: 
+            if child.skipped_bits != 0:
                if vmerge():
-                  msge("Not merging because skipped bits at child level: " + 
+                  msge("Not merging because skipped bits at child level: " +
                        str(child.skipped_bits))
                all_match = False
                break
-                  
+
 
          if all_match:
             merge_child_nodes(options,node)
@@ -5401,28 +5404,28 @@ def optimize_graph(options, node):
    renumber_nodes(options,node)
    if vgraph_res():
       print_resource_usage('optimize-graph.2')
-   
+
 
 def epsilon_label_graph(options, node):
    node.otherwise_ok  = True
    # recur
    for child in node.next.values():
       epsilon_label_graph(options,child)
-   
+
 ############################################################################
 ## Packers and extractors
 ############################################################################
 # $$ bit_group_info_t
 class bit_group_info_t(object):
    """Tell us where physical bits are symbolically. Each bit_group_info_t has:
-   
+
       a bit name
       a bit instance - the i'th copy of the named bit
 
       a length - number of bits in this group. So this group is bit i
       though bit i+length-1.
 
-      a position - not counting NONTERMINALS or OPERAND DECIDERS. 
+      a position - not counting NONTERMINALS or OPERAND DECIDERS.
 
       a nonterminal adder - a string describing all previous
       nonterminals encountered)
@@ -5430,11 +5433,11 @@ class bit_group_info_t(object):
       a nonterminal instance - counting any and all kinds of
       nonterminals in this pattern
    """
-   def __init__(self, 
-                bit_name, 
-                instance, 
-                position_count, 
-                nonterminal_adder, 
+   def __init__(self,
+                bit_name,
+                instance,
+                position_count,
+                nonterminal_adder,
                 nonterminal_instance=0):
       self.bit_name = bit_name
       # number of the first bit of this run
@@ -5450,7 +5453,7 @@ class bit_group_info_t(object):
       # to 3. This index is used to index in to the nonterminal storage
       # associated with the current nonterminal.
       self.nonterminal_instance = 0
-      
+
    def emit(self):
       "return a string"
       lst = [self.bit_name ]
@@ -5463,7 +5466,7 @@ class bit_group_info_t(object):
       s = '/'.join(lst)
       return s
 
-   
+
 def print_bit_groups(bit_groups, s=''):
    q = "BITGRP:"
    for b in bit_groups:
@@ -5478,7 +5481,7 @@ def emit_function_headers(fp, fo_dict):
    for fname in fo_dict.keys():
       fo = fo_dict[fname]
       fp.write(fo.emit_header())
-      
+
 ############################################################################
 def mark_operands_internal(agi, parser_output):
     """Go through all the operands in the parser and mark each
@@ -5546,17 +5549,17 @@ def expand_hierarchical_records(ii):
    extra_iforms_input = ii.extra_iforms_input
    ii.extra_operands = None
    ii.extra_ipatterns = None
-   ii.extra_iforms_input = None   
-   
+   ii.extra_iforms_input = None
+
    # start with the first instruction, then expand the "extra" ones
    new_lines.append(ii)
 
    if len(extra_ipatterns) != len(extra_operands) or \
       len(extra_ipatterns) != len(extra_iforms_input):
       die("Missing some patterns, operands or iforms for " + ii.iclass)
-      
-   for (ipattern, operands, iform) in zip(extra_ipatterns, 
-                                          extra_operands, 
+
+   for (ipattern, operands, iform) in zip(extra_ipatterns,
+                                          extra_operands,
                                           extra_iforms_input):
       new_rec = copy.deepcopy(ii)
       new_rec.new_inum()
@@ -5591,7 +5594,7 @@ class generator_common_t(object):
       self.inst_file = None
       self.operand_storage_hdr_file = None
       self.operand_storage_src_file = None
-      
+
       self.header_file_names = []
       self.source_file_names = []
       self.file_pointers = []
@@ -5601,7 +5604,7 @@ class generator_common_t(object):
    def get_state_space_values(self,od_token):
        '''return the list of values associated with this token'''
        return self.state_space[od_token]
-      
+
    def open_file(self,fn, arg_shell_file=False, start=True):
       'open and record the file pointers'
 
@@ -5630,7 +5633,7 @@ class generator_common_t(object):
          else:
             self.source_file_names.append(fn)
       return fn
-   
+
    def open_all_files(self):
       "Open the major output files"
       msge("Opening output files")
@@ -5649,19 +5652,19 @@ class generator_common_t(object):
       fp = self.open_file(fn)
       return fp
 
-         
+
    def close_output_files(self):
       "Close the major output files"
       for f in self.file_pointers:
          f.close()
 
-# $$ generator_info_t      
+# $$ generator_info_t
 class generator_info_t(generator_common_t):
    """All the information that we collect and generate"""
    def __init__(self, common):
       super(generator_info_t,self).__init__()
       self.common = common
-      
+
       if self.common.options == None:
          die("Bad init")
       #old style generator_common_t.__init__(self,generator_common)
@@ -5683,7 +5686,7 @@ class generator_info_t(generator_common_t):
       #generate a table here.
       self.luf_arrays =  []
       self.marshalling_function = None
-      
+
    def nonterminal_name(self):
       """The name of this subtree"""
       s =  self.parser_output.nonterminal_name
@@ -5706,7 +5709,7 @@ class all_generator_info_t(object):
       self.common = generator_common_t()
       self.common.options = options
       self.common.open_all_files()
-      
+
       self.generator_list = []
       self.generator_dict = {} # access by NT name
       self.nonterminal_dict = nonterminal_dict_t()
@@ -5716,7 +5719,7 @@ class all_generator_info_t(object):
 
       # list of map_info_rdr.map_info_t describing valid maps for this
       # build.
-      self.map_info = None 
+      self.map_info = None
 
 
       # enum lists
@@ -5727,7 +5730,7 @@ class all_generator_info_t(object):
       self.categories = []
       self.extensions = []
       self.attributes = []
-      
+
       # for emitting defines with limits
       self.max_iclass_strings = 0
       self.max_convert_patterns = 0
@@ -5741,15 +5744,15 @@ class all_generator_info_t(object):
       self.itable_init_functions = table_init_object_t('xed-init-inst-table-',
                                                        'xed_init_inst_table_')
       self.encode_init_function_objects = []
-      
+
       # dictionaries of code snippets that map to function names
       self.extractors = {}
       self.packers = {}
-      
-      self.operand_storage = None # operand_storage_t
-      
 
-      # function_object_t 
+      self.operand_storage = None # operand_storage_t
+
+
+      # function_object_t
       self.overall_lookup_init = None
 
       # functions called during decode traverals to capture required operands.
@@ -5760,26 +5763,26 @@ class all_generator_info_t(object):
 
       # list of (index, initializer) tuples for all the entire decode graph
       self.all_decode_graph_nodes=[]
-      
+
       self.data_table_file=None
       self.operand_sequence_file=None
 
       # set by scan_maps
       self.max_map_vex = 0
       self.max_map_evex = 0
-      
-      # dict "iclass:extension" -> ( iclass,extension, 
+
+      # dict "iclass:extension" -> ( iclass,extension,
       #                               category, iform_enum, properties-list)
-      self.iform_info = {} 
+      self.iform_info = {}
 
       self.attributes_dict = {}
       self.attr_next_pos  = 0
       self.attributes_ordered  = None
       self.sorted_attributes_dict = {}
-      # a dict of all the enum names to their values. 
-      # passed to operand storage in order to calculate 
+      # a dict of all the enum names to their values.
+      # passed to operand storage in order to calculate
       # the number of required bits
-      self.all_enums = {} 
+      self.all_enums = {}
 
       # these are xed_file_emitter_t objects
       self.flag_simple_file = self.common.open_file("xed-flags-simple.c", start=False)
@@ -5802,7 +5805,7 @@ class all_generator_info_t(object):
        self.emit_close_array(self.flag_simple_file)
        self.emit_close_array(self.flag_complex_file)
        self.emit_close_array(self.flag_action_file)
-       
+
    def emit_flag_simple_decl(self):
        self.flag_simple_file.add_code("const xed_simple_flag_t xed_flags_simple_table[] = {")
        self.flag_simple_file.add_code("/* 0 */ {0,0,0,{0},{0},{0},0}, /* invalid */")
@@ -5819,11 +5822,11 @@ class all_generator_info_t(object):
 
 
    def open_operand_data_file(self):
-      self.data_table_file=self.open_file('xed-init-operand-data.c', 
+      self.data_table_file=self.open_file('xed-init-operand-data.c',
                                           start=False)
       self.data_table_file.add_header('xed-inst-defs.h')
       self.data_table_file.start()
-      s = ('XED_DLL_EXPORT const xed_operand_t ' + 
+      s = ('XED_DLL_EXPORT const xed_operand_t ' +
           'xed_operand[XED_MAX_OPERAND_TABLE_NODES] = {\n')
       self.data_table_file.write(s)
 
@@ -5836,11 +5839,11 @@ class all_generator_info_t(object):
 
    def open_operand_sequence_file(self):
       self.operand_sequence_file = \
-          self.open_file('xed-init-operand-sequences.c', 
+          self.open_file('xed-init-operand-sequences.c',
                          start=False)
       self.operand_sequence_file.add_header('xed-inst-defs.h')
       self.operand_sequence_file.start()
-      s = ('XED_DLL_EXPORT const xed_uint16_t ' + 
+      s = ('XED_DLL_EXPORT const xed_uint16_t ' +
           'xed_operand_sequences[XED_MAX_OPERAND_SEQUENCES] = {\n')
       self.operand_sequence_file.write(s)
 
@@ -5848,7 +5851,7 @@ class all_generator_info_t(object):
       self.operand_sequence_file.write('};\n')
       self.operand_sequence_file.close()
 
-      
+
    def add_file_name(self,fn,header=False):
       if type(fn) in [bytes,str]:
           fns = [fn]
@@ -5856,7 +5859,7 @@ class all_generator_info_t(object):
           fns = fn
       else:
           die("Need string or list")
-      
+
       for f in fns:
           if header:
              self.hdr_files.append(f)
@@ -5866,14 +5869,14 @@ class all_generator_info_t(object):
    def dump_generated_files(self):
        """For mbuild dependence checking, we need an accurate list of the
           files the generator created. This file is read by xed_mbuild.py"""
-       
-       output_file_list = mbuild.join(self.common.options.gendir, 
+
+       output_file_list = mbuild.join(self.common.options.gendir,
                                       "DECGEN-OUTPUT-FILES.txt")
        f = base_open_file(output_file_list,"w")
        for fn in self.hdr_files + self.src_files:
            f.write(fn+"\n")
        f.close()
-   
+
    def mk_fn(self,fn):
       if True: #MJC2006-10-10
          return fn
@@ -5881,7 +5884,7 @@ class all_generator_info_t(object):
 
    def real_mk_fn(self,fn):
       return os.path.join(self.common.options.gendir,fn)
-      
+
    def close_output_files(self):
       "Close the major output files"
       self.common.close_output_files()
@@ -5918,7 +5921,7 @@ class all_generator_info_t(object):
                    elif ii.is_evex():
                        self.max_map_evex = max(self.max_map_evex, ii.get_map())
 
-                        
+
    def code_gen_table_sizes(self):
       """Write the file that has the declarations of the tables that we
       fill in in the generator"""
@@ -5935,48 +5938,48 @@ class all_generator_info_t(object):
       fi.start()
 
       global global_final_inum
-      irecs = global_final_inum + 1 # 7000 
+      irecs = global_final_inum + 1 # 7000
 
       global global_max_iforms_per_iclass
-            
+
       global operand_max
       orecs = operand_max+1
 
-      fi.add_code("#define XED_ICLASS_NAME_STR_MAX %d" % 
+      fi.add_code("#define XED_ICLASS_NAME_STR_MAX %d" %
                   (self.max_iclass_strings))
 
       global max_attributes
       fi.add_code("#define XED_MAX_ATTRIBUTE_COUNT %d" % (max_attributes))
-      
+
       fi.add_code("#define XED_MAX_INST_TABLE_NODES %d" % (irecs))
 
       global global_operand_table_id
-      fi.add_code("#define XED_MAX_OPERAND_TABLE_NODES %d" % 
+      fi.add_code("#define XED_MAX_OPERAND_TABLE_NODES %d" %
                   (global_operand_table_id))
 
       global global_max_operand_sequences
-      fi.add_code("#define XED_MAX_OPERAND_SEQUENCES %d" % 
+      fi.add_code("#define XED_MAX_OPERAND_SEQUENCES %d" %
                   (global_max_operand_sequences))
 
-      # flags 
-      fi.add_code("#define XED_MAX_REQUIRED_SIMPLE_FLAGS_ENTRIES %d" % 
+      # flags
+      fi.add_code("#define XED_MAX_REQUIRED_SIMPLE_FLAGS_ENTRIES %d" %
                   (flag_gen.flags_info_t._flag_simple_rec))
-      fi.add_code("#define XED_MAX_REQUIRED_COMPLEX_FLAGS_ENTRIES %d" % 
+      fi.add_code("#define XED_MAX_REQUIRED_COMPLEX_FLAGS_ENTRIES %d" %
                   (flag_gen.flags_info_t._flag_complex_rec))
-      fi.add_code("#define XED_MAX_GLOBAL_FLAG_ACTIONS %d" % 
+      fi.add_code("#define XED_MAX_GLOBAL_FLAG_ACTIONS %d" %
                   (flag_gen.flags_info_t._max_flag_actions))
 
 
-      fi.add_code("#define XED_MAX_IFORMS_PER_ICLASS %d" % 
+      fi.add_code("#define XED_MAX_IFORMS_PER_ICLASS %d" %
                   (global_max_iforms_per_iclass))
 
-      fi.add_code("#define XED_MAX_REQUIRED_ATTRIBUTES %d" % 
+      fi.add_code("#define XED_MAX_REQUIRED_ATTRIBUTES %d" %
                   (len(self.attributes_dict)))
 
 
-      fi.add_code("#define XED_MAX_CONVERT_PATTERNS %d" % 
+      fi.add_code("#define XED_MAX_CONVERT_PATTERNS %d" %
                   (self.max_convert_patterns))
-      fi.add_code("#define XED_MAX_DECORATIONS_PER_OPERAND %d" % 
+      fi.add_code("#define XED_MAX_DECORATIONS_PER_OPERAND %d" %
                   (self.max_decorations_per_operand))
 
       self.scan_maps()
@@ -5984,7 +5987,7 @@ class all_generator_info_t(object):
       fi.add_code("#define XED_MAX_MAP_EVEX {}".format(self.max_map_evex))
       fi.close()
 
-      
+
    def handle_prefab_enum(self,enum_fn):
       # parse the enum file and get the c and h file names
       gendir = self.common.options.gendir
@@ -5995,10 +5998,10 @@ class all_generator_info_t(object):
       self.add_file_name(m.hdr_full_file_name,header=True)
       all_values = [  x.name for x in m.tuples ]
       return all_values
-      
-      
 
-      
+
+
+
    def handle_prefab_enums(self):
       """Gather up all the enum.txt files in the datafiles directory"""
       prefab_enum_shell_pattern = os.path.join(self.common.options.xeddir,
@@ -6007,7 +6010,7 @@ class all_generator_info_t(object):
       for fn in prefab_enum_files:
          msge("PREFAB-ENUM: " + fn)
          self.handle_prefab_enum( fn )
-         
+
    def extend_operand_names_with_input_states(self):
       type ='xed_uint32_t'
       for operand_decider in self.common.state_space.keys():
@@ -6021,7 +6024,7 @@ def init_functions_for_table(agi, fp, function_name, init_object):
    """emit, to the file pointer fp, headers and calls to each init
    function for the init_object. The function we build is named
    function_name."""
-   print_resource_usage('init.0')   
+   print_resource_usage('init.0')
    # emit prototype for each subgraph init function
    for dfo in init_object.get_init_functions():
       #print_resource_usage('init.1')
@@ -6043,7 +6046,7 @@ def generator_emit_function_list(fo_list, file_emitter):
    """Emit the function_object_t-s in the fo_list list via the file_emitter"""
    for fo in fo_list:
       fo.emit_file_emitter(file_emitter)
-      
+
 def generator_emit_function_header_list(fo_list, file_emitter):
    """Emit the function headers for the function_object_t-s in the
    fo_list list via the file_emitter"""
@@ -6060,7 +6063,7 @@ def make_cvt_values(s,n):
     if len_t < n:
         t.extend(['INVALID']*(n-len_t))
     return t
-    
+
 def collect_convert_decorations(agi):
     """Find all instruction operands. Each operand has 0...N where N=3
     currently conversion decorations. Number each combination of
@@ -6090,27 +6093,27 @@ def collect_convert_decorations(agi):
     msgb("NUMBER OF CONVERT PATTERNS", str(n))
     agi.max_convert_patterns = n
     agi.max_decorations_per_operand = 3
-    fn = 'xed-operand-convert-init.c' 
+    fn = 'xed-operand-convert-init.c'
     f = agi.common.open_file(fn, start=False)
     f.add_misc_header("#include \"xed-operand-convert-enum.h\"")
     f.add_misc_header("#include \"xed-gen-table-defs.h\"")
     f.start()
     f.write("\nconst xed_operand_convert_enum_t ")
-    f.write("xed_operand_convert[XED_MAX_CONVERT_PATTERNS][%s] = {\n" % 
+    f.write("xed_operand_convert[XED_MAX_CONVERT_PATTERNS][%s] = {\n" %
             ('XED_MAX_DECORATIONS_PER_OPERAND'))
 
-    
+
     for i,cvt_key in enumerate(cvt_list):
         cvals = make_cvt_values(cvt_key,agi.max_decorations_per_operand)
-        s = ("{ XED_OPERAND_CONVERT_%s, " + 
-             "XED_OPERAND_CONVERT_%s, " + 
+        s = ("{ XED_OPERAND_CONVERT_%s, " +
+             "XED_OPERAND_CONVERT_%s, " +
              "XED_OPERAND_CONVERT_%s },  ") % tuple(cvals)
         f.write("/* %d */ %s\n" % (i,s))
     f.write("\n};\n")
     f.close()
 
-                    
-                    
+
+
 ############################################################################
 # Generate the graph and most tables
 ############################################################################
@@ -6123,18 +6126,18 @@ def gen_everything_else(agi):
     msge("Reading state bits")
     if agi.common.options.input_state != '':
        #parse the xed-state-bits.txt (or something similar) file and return
-       #a dictionary from a token_name to an object of 
+       #a dictionary from a token_name to an object of
        #{token_name, [token_expansion]}
        #for example for "no_refining_prefix     REFINING=0 OSZ=0" line we will
-       #have an entry no_refining_prefix: 
+       #have an entry no_refining_prefix:
        #{no_refning_prefix, [REFINING=0, OSZ=0]}
        agi.common.state_bits = read_state_spec(agi.common.options.input_state)
     else:
        die("Could not find state bits file in options")
     msge("Done reading state bits")
 
-    #for each of the requirement statements (eg EOSZ=1), found in the state 
-    #file, save for each token (eg EOSZ) all its possible values 
+    #for each of the requirement statements (eg EOSZ=1), found in the state
+    #file, save for each token (eg EOSZ) all its possible values
     #(eg [0,1,2,3]), return a dictionary from token to its possible values
     #eg EOSZ: [0,1,2,3]
     agi.common.state_space = compute_state_space(agi.common.state_bits)
@@ -6153,7 +6156,7 @@ def gen_everything_else(agi):
                      agi.common.options.isa_input_file,"r").readlines()
     lines.extend(isa_lines)
     del isa_lines
-    
+
     lines = process_continuations(lines)
 
     # Open structured output file
@@ -6177,19 +6180,19 @@ def gen_everything_else(agi):
        lines = read_input(agi, lines)
        msge("BLines (lines remaining after reading input) = " + str(len(lines)))
 
-    #after this we will have all deleted and udeleted instructions 
+    #after this we will have all deleted and udeleted instructions
     #removed for all parsers, that have instructions.
-    #Also all instructions with old versions will be dropped. 
+    #Also all instructions with old versions will be dropped.
     remove_instructions(agi)
-    
+
     # first pass on the input, build the graph, collect information
     for gi in agi.generator_list:
        # if anything has flags, then add a flags register
        add_flags_register_operand_all(agi,gi.parser_output)
-       
+
        if agi.common.state_bits == None:
           die("Bad agi state bits")
-          
+
        if gi.common.state_bits == None:
           die("Bad state bits")
 
@@ -6200,8 +6203,8 @@ def gen_everything_else(agi):
        ###############################################
        # BUILD THE GRAPH BY RECURSIVE PARTITIONING
        ###############################################
-       gi.graph = build_graph(agi.common, 
-                              gi.parser_output, 
+       gi.graph = build_graph(agi.common,
+                              gi.parser_output,
                               agi.operand_storage.get_operands())
 
        if not gi.parser_output.is_lookup_function():
@@ -6224,19 +6227,19 @@ def gen_everything_else(agi):
           #msge("DEPTHS: "+ str(d))
        if agi.common.options.print_graph:
           print_graph(agi.common.options,gi.graph)
-          
+
     print_resource_usage('everything.2')
     if print_structured_output:
        sout.close()
        del sout
-    
+
     print_resource_usage('everything.3')
     # Renumber the itable nodes so that they are sequential, skipping
     # over the lookup function itable entries.
     relabel_itable(agi)
-    
+
     print_resource_usage('everything.3a')
-    
+
     # some stuff needs to be created first so that the pass2 stuff can
     # refer to it.
     for generator in agi.generator_list:
@@ -6244,7 +6247,7 @@ def gen_everything_else(agi):
        rewrite_default_operand_visibilities(generator,
                                             agi.operand_storage.get_operands())
 
-       compute_iforms(generator.common.options, 
+       compute_iforms(generator.common.options,
                       generator,
                       agi.operand_storage.get_operands())
 
@@ -6254,7 +6257,7 @@ def gen_everything_else(agi):
     # initializing other structures.
     emit_iclass_enum_info(agi)
     emit_iclass_rep_ops(agi)
-    
+
     collect_and_emit_iforms(agi,agi.common.options)
     collect_iclass_strings(agi)
     collect_instruction_types(agi, agi.iform_info)
@@ -6268,7 +6271,7 @@ def gen_everything_else(agi):
     # idata.txt file write
     write_instruction_data(agi, agi.iform_info)
     write_quick_iform_map(agi,agi.common.options.gendir,agi.iform_info)
-    
+
     print_resource_usage('everything.4b')
     # mark bit positions in each "instruction"
     decorate_operands(agi.common.options,agi)
@@ -6284,12 +6287,12 @@ def gen_everything_else(agi):
 
     agi.open_operand_data_file()
     agi.open_operand_sequence_file()
-    
+
     cg_args = code_gen_dec_args_t()
 
     agi.encode_init_function_objects.append(
               function_object_t('xed_encode_init', 'void'))
-    print_resource_usage('everything.5')          
+    print_resource_usage('everything.5')
 
     find_common_operand_sequences(agi)
 
@@ -6316,7 +6319,7 @@ def gen_everything_else(agi):
                                      cg_args.nonterminal_dict,
                                      cg_args.operand_storage_dict)
 
-          print_resource_usage('everything.7')        
+          print_resource_usage('everything.7')
 
     global max_operand_count
     msgb("MAX OPERAND COUNT {}".format(max_operand_count))
@@ -6332,14 +6335,14 @@ def gen_everything_else(agi):
     agi.itable_init_functions.finish_fp()
 
     print_resource_usage('everything.10')
-       
+
     # THIS NEXT FUNCTION IS THE BIGGEST TIME HOG
     init_functions_for_table(agi,
                              agi.common.inst_file,
                              'xed_init_inst_table',
                              agi.itable_init_functions)
-    
-    print_resource_usage('everything.12')          
+
+    print_resource_usage('everything.12')
     # some states are not assigned to in the graph and we must reserve
     # storage for them anyway. MODE is one example.
     agi.extend_operand_names_with_input_states()
@@ -6348,17 +6351,17 @@ def gen_everything_else(agi):
     agi.handle_prefab_enums()
 
     agi.add_file_name(agi.common.source_file_names)
-    agi.add_file_name(agi.common.header_file_names, header=True)    
+    agi.add_file_name(agi.common.header_file_names, header=True)
 
     write_attributes_table(agi,agi.common.options.gendir)
 
     # defines for emitted tables
     agi.code_gen_table_sizes()
     agi.close_flags_files()
-    print_resource_usage('everything.16')          
+    print_resource_usage('everything.16')
 
     call_chipmodel(agi)
-    call_ctables(agi) 
+    call_ctables(agi)
     emit_operand_storage(agi)
 
 ################################################
@@ -6384,7 +6387,7 @@ def call_chipmodel(agi):
     # isaset_ch is a list of the ISA_SETs mentioned in the chip hierarchy.
     # we need to check that all of those are used/mentioned by some chip.
     files_created,chips,isaset_ch = chipmodel.work(args)
-    
+
     agi.all_enums['xed_chip_enum_t'] = chips
     agi.all_enums['xed_isa_set_enum_t'] = isaset_ch
     print("Created files: %s" % (" ".join(files_created)))
@@ -6397,8 +6400,8 @@ def read_cpuid_mappings(fn):
 
 def make_cpuid_mappings(agi,mappings):
 
-    # 'mappings' is a dict of isa_set -> list of cpuid_bit_names 
-    
+    # 'mappings' is a dict of isa_set -> list of cpuid_bit_names
+
     # collect all unique list of cpuid bit names
     cpuid_bits = {}
     for vlist in mappings.values():
@@ -6417,13 +6420,13 @@ def make_cpuid_mappings(agi,mappings):
                             bitname, cpuid_bits[bitname], data))
             cpuid_bits[bitname]=data
 
-    
+
     cpuid_bit_string_names = sorted(cpuid_bits.keys())
 
     # move INVALID to 0th element:
     p = cpuid_bit_string_names.index('INVALID')
     del cpuid_bit_string_names[p]
-    cpuid_bit_string_names = ['INVALID'] + cpuid_bit_string_names 
+    cpuid_bit_string_names = ['INVALID'] + cpuid_bit_string_names
 
     # emit enum for cpuid bit names
     cpuid_bit_enum =  enum_txt_writer.enum_info_t(cpuid_bit_string_names,
@@ -6431,7 +6434,7 @@ def make_cpuid_mappings(agi,mappings):
                                                   agi.common.options.gendir,
                                                   'xed-cpuid-bit',
                                                   'xed_cpuid_bit_enum_t',
-                                                  'XED_CPUID_BIT_', 
+                                                  'XED_CPUID_BIT_',
                                                   cplusplus=False)
     cpuid_bit_enum.print_enum()
     cpuid_bit_enum.run_enumer()
@@ -6449,7 +6452,7 @@ def make_cpuid_mappings(agi,mappings):
             reg = 'INVALID'
         else:
             (leaf,subleaf,reg,bit) = cpuid_bit_data.split('_')
-            
+
         s = "/* {:18s} */ {{ 0x{}, {}, {}, XED_REG_{} }},".format(
             bitname, leaf,subleaf, bit, reg)
         fp.add_code(s)
@@ -6464,10 +6467,10 @@ def make_cpuid_mappings(agi,mappings):
             genutil.warn("bad isa_set referenced cpuid file: {}".format(cisa))
     if fail:
         die("Found bad isa_sets in cpuid input files.")
-                    
 
-        
-    
+
+
+
     # emit initialized structure of isa-set mapping to array of cpuid bit string enum.
     n = 4
     fp.add_code('const xed_cpuid_bit_enum_t xed_isa_set_to_cpuid_mapping[][XED_MAX_CPUID_BITS_PER_ISA_SET] = {')
@@ -6500,11 +6503,11 @@ def gen_cpuid_map(agi):
             make_cpuid_mappings(agi, mappings)
             return
     die("Could not read cpuid input file: {}".format(str(fn)))
-    
+
 ################################################
 
 def emit_regs_enum(options, regs_list):
-    
+
    #FIXME: sort the register names by their type. Collect all the
    #types-and-widths, sort them by their ordinals. Special handling
    #for the AH/BH/CH/DH registers is required.
@@ -6513,7 +6516,7 @@ def emit_regs_enum(options, regs_list):
 
    reg_enum =  enum_txt_writer.enum_info_t(enumvals,
                                            options.xeddir, options.gendir,
-                                           'xed-reg', 'xed_reg_enum_t', 
+                                           'xed-reg', 'xed_reg_enum_t',
                                            'XED_REG_', cplusplus=False)
    reg_enum.print_enum()
    reg_enum.run_enumer()
@@ -6534,15 +6537,15 @@ def emit_reg_class_enum(options, regs_list):
    del rclasses['INVALID']
    just_rclass_names = list(rclasses.keys())
    # FIXME: would really prefer alphanumeric sort (low priority)
-   just_rclass_names.sort() 
+   just_rclass_names.sort()
 
    just_rclass_names[0:0] = ['INVALID'] # put INVALID at the start of the list
    reg_enum =  enum_txt_writer.enum_info_t(just_rclass_names,
-                                           options.xeddir, 
+                                           options.xeddir,
                                            options.gendir,
-                                           'xed-reg-class', 
+                                           'xed-reg-class',
                                            'xed_reg_class_enum_t',
-                                           'XED_REG_CLASS_', 
+                                           'XED_REG_CLASS_',
                                            cplusplus=False)
    reg_enum.print_enum()
    reg_enum.run_enumer()
@@ -6551,10 +6554,10 @@ def emit_reg_class_enum(options, regs_list):
 def emit_reg_class_mappings(options, regs_list):
    """Emit code to map any reg to its regclass. Also emit code to map
    GPRs to a more specific GPR regclass (GPR8,16,32,64)"""
-   
+
    fo = function_object_t('xed_init_reg_mappings', 'void')
    for ri in regs_list:
-      s = 'xed_reg_class_array[XED_REG_%s]= XED_REG_CLASS_%s' % (ri.name, 
+      s = 'xed_reg_class_array[XED_REG_%s]= XED_REG_CLASS_%s' % (ri.name,
                                                                  ri.type)
       fo.add_code_eol(s)
 
@@ -6571,7 +6574,7 @@ def emit_reg_class_mappings(options, regs_list):
       s = 'xed_largest_enclosing_register_array_32[XED_REG_%s]= XED_REG_%s' % (
           ri.name, m32)
       fo.add_code_eol(s)
-      
+
    for ri in regs_list:
       if ri.type == 'GPR':
          s = 'xed_gpr_reg_class_array[XED_REG_%s]= XED_REG_CLASS_%s%s' % (
@@ -6590,7 +6593,7 @@ def emit_reg_class_mappings(options, regs_list):
       else:
          width   = ri.width
          width64 = ri.width
-      
+
       s = 'xed_reg_width_bits[XED_REG_%s][0] = %s' % (ri.name, width)
       fo.add_code_eol(s)
       s = 'xed_reg_width_bits[XED_REG_%s][1] = %s' % (ri.name, width64)
@@ -6620,11 +6623,11 @@ def gen_regs(options,agi):
    (cfn, hfn) = emit_regs_enum(options, regs_list)
    agi.add_file_name(cfn)
    agi.add_file_name(hfn,header=True)
-   
+
    (cfn, hfn) = emit_reg_class_enum(options, regs_list)
    agi.add_file_name(cfn)
    agi.add_file_name(hfn,header=True)
-   
+
    cfn_map = emit_reg_class_mappings(options, regs_list)
    agi.add_file_name(cfn_map)
 
@@ -6650,7 +6653,7 @@ def is_bits(val):
          if completely_numeric.match(number_string):
             return number_string
    return None
-   
+
 def refine_widths_input(lines):
    """Return  a list of width_info_t. Skip comments and blank lines"""
    global comment_pattern
@@ -6690,7 +6693,7 @@ def emit_widths_enum(options, widths_list):
                                              options.xeddir, options.gendir,
                                              'xed-operand-width',
                                              'xed_operand_width_enum_t',
-                                             'XED_OPERAND_WIDTH_', 
+                                             'XED_OPERAND_WIDTH_',
                                              cplusplus=False)
    width_enum.print_enum()
    width_enum.run_enumer()
@@ -6706,7 +6709,7 @@ def emit_width_lookup(options, widths_list):
       for i,w in enumerate(ri.widths):
          s = 'xed_width_bits[XED_OPERAND_WIDTH_%s][%d] = %s' % (ri.name, i, w)
          fo.add_code_eol(s)
-         
+
          if 0: # DISABLED!!!
             if int(w) % 8  == 0:
                multiple = '1'
@@ -6739,7 +6742,7 @@ def gen_element_types(agi):
                           "r","element types").readlines()
    agi.xtypes_dict = opnd_types.read_operand_types(lines)
    agi.xtypes = set(agi.xtypes_dict.keys())
-   
+
    (cfn,hfn) = opnd_types.write_enum(agi,agi.xtypes_dict)
    agi.add_file_name(cfn)
    agi.add_file_name(hfn,header=True)
@@ -6786,12 +6789,12 @@ def gen_widths(options,agi):
    (cfn, hfn) = emit_widths_enum(options, widths_list)
    agi.add_file_name(cfn)
    agi.add_file_name(hfn,header=True)
-   
+
    cfn_map = emit_width_lookup(options, widths_list)
    agi.add_file_name(cfn_map)
 
    agi.widths_list = widths_list
-   
+
    # sets the default data type for each width
    agi.widths_dict = {}
    for w in widths_list:
@@ -6804,18 +6807,18 @@ def gen_widths(options,agi):
       if w16 != w32 or w16  != w64 or w32 != w64:
          msge("Adding scalable width:  " + w.name)
          agi.scalable_widths.add(w.name)
-   
+
 
 ############################################################################
 def emit_pointer_name_lookup(options, widths_list):
-   """Emit code to map integers representing a number of bytes accessed to a 
+   """Emit code to map integers representing a number of bytes accessed to a
    pointer name for disassembly."""
 
    max_width = 0
    for bbytes, name, suffix in widths_list:
       if int(bbytes) > max_width:
          max_width = int(bbytes)+1
-   
+
    hfp = xed_file_emitter_t(options.xeddir,
                            options.gendir,
                            'xed-init-pointer-names.h')
@@ -6868,7 +6871,7 @@ def refine_pointer_names_input(lines):
          die("Bad number of tokens on line: " + line)
       widths_list.append((bbytes,name,suffix))
    return widths_list
-   
+
 def gen_pointer_names(options,agi):
    """Generate the pointer name lookup function"""
    lines = base_open_file(options.input_pointer_names,"r",
@@ -6889,7 +6892,7 @@ def emit_exception_enum(agi):
                                         agi.common.options.gendir,
                                         'xed-exception',
                                         'xed_exception_enum_t',
-                                        'XED_EXCEPTION_', 
+                                        'XED_EXCEPTION_',
                                         cplusplus=False)
     enum.print_enum()
     enum.run_enumer()
@@ -6912,12 +6915,12 @@ def decorate_instructions_with_exception_types(agi):
                 ii.exceptions = ii.exceptions.upper()
                 agi.exception_types.append(ii.exceptions)
             else:
-                ii.exceptions = 'INVALID' 
-    # writes agi.exception_types list of exceptions 
+                ii.exceptions = 'INVALID'
+    # writes agi.exception_types list of exceptions
     emit_exception_enum(agi)
 
 
-    
+
 ############################################################################
 
 def emit_ctypes_enum(options, ctypes_dict):
@@ -6928,7 +6931,7 @@ def emit_ctypes_enum(options, ctypes_dict):
                                               options.xeddir, options.gendir,
                                               'xed-operand-ctype',
                                               'xed_operand_ctype_enum_t',
-                                              'XED_OPERAND_CTYPE_', 
+                                              'XED_OPERAND_CTYPE_',
                                               cplusplus=False)
    ctypes_enum.print_enum()
    ctypes_enum.run_enumer()
@@ -6962,7 +6965,7 @@ def emit_ctypes_mapping(options, operand_ctype_map, operand_bits_map):
 
    for o,c in operand_bits_map.items():
       ifo.add_code_eol("xed_operand_bits[XED_OPERAND_%s]=%s" % (o.upper(), c))
-      
+
    cf.write("static xed_operand_ctype_enum_t"+
             " xed_operand_ctype[XED_OPERAND_LAST];\n")
    cf.write("static unsigned int  xed_operand_bits[XED_OPERAND_LAST];\n")
@@ -6980,11 +6983,11 @@ def gen_operand_storage_fields(options,agi):
    """Read the register names and type specifiers. Build some classes, enum"""
    lines = base_open_file(options.input_fields,"r",
                           "operand fields input").readlines()
-   
+
    compress_operands = agi.common.options.compress_operands
    agi.operand_storage = operand_storage.operands_storage_t(lines,
                                                             compress_operands)
-   
+
    operand_fields = agi.operand_storage.get_operands()
    ctypes = {} #  ctypes -> True
    for of in list(operand_fields.values()):
@@ -7004,14 +7007,14 @@ def gen_operand_storage_fields(options,agi):
    (cfn, hfn) = emit_ctypes_enum(options, ctypes)
    agi.add_file_name(cfn)
    agi.add_file_name(hfn,header=True)
-   
+
    (cfn, hfn) = emit_ctypes_mapping(options,
                                     operand_ctype_map, operand_bits_map)
    agi.add_file_name(cfn)
    agi.add_file_name(hfn,header=True)
 
-   
-    
+
+
 ############################################################################
 # MAIN
 ############################################################################
@@ -7019,10 +7022,10 @@ def gen_operand_storage_fields(options,agi):
 def main():
    arg_parser = setup_arg_parser()
    (options, args ) = arg_parser.parse_args()
-   
+
    if options.debug:
        activate_debugger() # genutil
-       
+
    set_verbosity_options(options.verbosity)
    if options.xeddir == '':
       path_to_generator = sys.argv[0]
@@ -7037,27 +7040,27 @@ def main():
 
    agi.map_info = map_info_rdr.read_file(options.map_descriptions_input_fn)
    gen_operand_storage_fields(options,agi)
-   
+
    gen_regs(options,agi)
 
    gen_widths(options,agi) # writes agi.widths_list and agi.widths_dict
    gen_extra_widths(agi) # writes agi.extra_widths_nt and agi.exta_widths_reg
-   gen_element_types_base(agi) 
+   gen_element_types_base(agi)
    gen_element_types(agi) # write agi.xtypes dict, agi.xtypes
    gen_pointer_names(options,agi)
-   
-   
+
+
    # this reads the pattern input, builds a graph, emits the decoder
    # graph and the itable, emits the extractor functions, computes the
    # iforms, writes map using iforms, computes capture
    # functions, gathers and emits enums. (That part should move out).
    gen_everything_else(agi)
-   
+
    # emit functions to identify AVX and AVX512 instruction groups
-   classifier.work(agi) 
+   classifier.work(agi)
    ild.work(agi)
    map_info_rdr.emit_enums(agi)
-   
+
    gen_cpuid_map(agi)
    agi.close_output_files()
    agi.dump_generated_files()

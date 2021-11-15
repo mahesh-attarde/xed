@@ -961,7 +961,12 @@ static void set_has_modrm(xed_decoded_inst_t* d) {
         xed_uint_t     map = xed3_operand_get_map(d);
         xed_uint8_t const* modrm_for_vv_map = xed_ild_has_modrm_table[vv][map];
         xed_assert(modrm_for_vv_map!=0);
-        xed3_operand_set_has_modrm(d,modrm_for_vv_map[opcode]);
+        xed_uint8_t has_modrm = modrm_for_vv_map[opcode];
+        if (has_modrm == XED_ILD_HASMODRM_UD0) {
+            has_modrm = !xed3_operand_get_mode_short_ud0(d);
+        }
+        xed3_operand_set_has_modrm(d,has_modrm);
+
     }
 }
 
@@ -1031,8 +1036,6 @@ static void evex_vex_opcode_scanner(xed_decoded_inst_t* d)
     xed3_operand_set_nominal_opcode(d, b);
     xed3_operand_set_pos_nominal_opcode(d, length);
     xed_decoded_inst_inc_length(d);
-    catch_invalid_rex_or_legacy_prefixes(d);
-    catch_invalid_mode(d);
     set_downstream_info(d,xed3_operand_get_vexvalid(d));
 }
 #endif
@@ -1459,7 +1462,8 @@ xed_instruction_length_decode(xed_decoded_inst_t* ild)
 #if defined(XED_SUPPORTS_AVX512) || defined(XED_SUPPORTS_KNC)
 
     // evex scanner assumes it can read bytes so we must check for limit first.
-    if (xed3_operand_get_out_of_bytes(ild))
+    if (xed3_operand_get_out_of_bytes(ild) ||
+        xed3_operand_get_error(ild)     )
         return;
 
     // if we got a vex prefix (which also sucks down the opcode),
@@ -1470,6 +1474,10 @@ xed_instruction_length_decode(xed_decoded_inst_t* ild)
 
     if (xed3_operand_get_out_of_bytes(ild))
         return;
+    if (xed3_operand_get_vexvalid(ild)) {
+        catch_invalid_rex_or_legacy_prefixes(ild);
+        catch_invalid_mode(ild);
+    }
 #if defined(XED_AVX)
     // vex/xop prefixes also eat the vex/xop opcode
     if (!xed3_operand_get_vexvalid(ild) &&
