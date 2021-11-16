@@ -347,6 +347,8 @@ def getInstrString(XMLInstr, stringSuffix):
       if opNode.attrib['type'] == 'mem':
          if 'VSIB' in opNode.attrib:
             parList.append('VSIB_' + opNode.attrib['VSIB'])
+         elif 'moffs' in opNode.attrib:
+            parList.append('Moffs' + opNode.attrib['width'])
          elif 'memory-suffix' in opNode.attrib:
             parList.append('M' + opNode.attrib['width'] + '_' + opNode.attrib['memory-suffix'].strip('{}'))
          else:
@@ -744,9 +746,11 @@ def generateXMLFile(agi):
                                        XMLOperand.attrib['memory-prefix'] = memoryPrefix
 
                                     for bit in ii.ipattern.bits:
-                                        if 'VMODRM' in bit.value:
-                                            XMLOperand.attrib['VSIB'] = bit.value.split('_')[-1][0:3]
-                                            break
+                                       if 'VMODRM' in bit.value:
+                                          XMLOperand.attrib['VSIB'] = bit.value.split('_')[-1][0:3]
+                                          break
+                                       if 'MEMDISPv' in bit.value:
+                                          XMLOperand.attrib['moffs'] = '1'
 
                                     if broadcast:
                                        bcastValues = findPossibleValuesForToken(ii.ipattern.bits, 'BCAST', state_space, agi)

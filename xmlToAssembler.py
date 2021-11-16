@@ -43,6 +43,8 @@ def main():
 
             if operandNode.attrib.get('VSIB', '0') != '0':
                asm += '[' + operandNode.attrib.get('VSIB') + '0]'
+            elif operandNode.attrib.get('moffs', '0') != '0':
+               asm += '[0x1111111111111111]'
             else:
                asm += '[RAX]'
 
