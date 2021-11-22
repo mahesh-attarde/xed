@@ -733,7 +733,7 @@ def generateXMLFile(agi):
                                     XMLOperand.attrib['xtype'] = operand.xtype
 
                                     for operand2 in ii.operands:
-                                       if operand.name[-1] != operand2.name[-1]: continue
+                                       if (operand2.name != 'INDEX') and (operand.name[-1] != operand2.name[-1]): continue
                                        if 'BASE' in operand2.name:
                                           XMLOperand.attrib['base'] = getAllRegisterNamesForOperand(operand2, agi, False, 0, eosz, rex)[-1]
                                        if 'SEG' in operand2.name:
