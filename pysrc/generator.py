@@ -426,23 +426,28 @@ def generateXMLFile(agi):
             continue
          allInstructions.append(ii)
 
-   extensionToIclassesDict = {}
+   iclassDict = {}
    for ii in allInstructions:
-      ext = ii.extension
-      if not ext in extensionToIclassesDict:
-         extensionToIclassesDict[ext] = set()
-      extensionToIclassesDict[ext].add(ii.iclass)
+      if not ii.iclass in iclassDict:
+         iclassDict[ii.iclass] = []
+      iclassDict[ii.iclass].append(ii)
 
    XMLRoot = Element('root')
-   for ext in sorted(extensionToIclassesDict.keys()):
+   for ext in sorted({ii.extension for ii in allInstructions}):
       XMLExtension = SubElement(XMLRoot, 'extension')
       XMLExtension.attrib['name'] = ext
 
    addedXMLInstrs = {}
    for ii in sorted(allInstructions, key=str):
-      # EVEX encoded instructions for which there is a non-EVEX encoded instruction with the same iclass
-      requiresEvexPrefix = (ii.is_evex() and not 'ZMM' in ii.iform_enum and
-                            any(ext for ext, icl in extensionToIclassesDict.items() if ii.extension != ext and ii.iclass in icl)) or ii.iclass == 'VPEXTRW_C5'
+      # EVEX encoded instructions for which an {evex} specifier is required as there is a corresponding non-EVEX
+      # encoded instruction that the assembler might prefer
+      requiresEvexSpecifier = (ii.is_evex() and ('ZMM' not in ii.iform_enum) and
+                               any(ii2 for ii2 in iclassDict[ii.iclass] if not ii2.is_evex())) or ii.iclass == 'VPEXTRW_C5'
+
+      # VEX encoded instructions for which a {vex} specifier is required as there is a corresponding non-VEX encoded
+      # instruction that the assembler might prefer
+      requiresVexSpecifier = (ii.is_vex() and (ii.extension not in ['AVX', 'AVX2', 'AVX2GATHER', 'AVXAES', 'F16C', 'FMA', 'GFNI', 'VAES', 'VPCLMULQDQ']) and
+                              any(ii2 for ii2 in iclassDict[ii.iclass] if not ii2.is_vex()))
 
       modeSet = findPossibleValuesForToken(ii.ipattern.bits, 'MODE', {}, agi)
       if modeSet and not (2 in modeSet):
@@ -582,9 +587,12 @@ def generateXMLFile(agi):
                            if ii.iclass in ['PCMPESTRI64', 'PCMPESTRM64', 'PCMPISTRI64', 'VPCMPESTRI64', 'VPCMPESTRM64', 'VPCMPISTRI64']:
                               XMLInstr.attrib['asm'] += 'Q'
 
-                           if requiresEvexPrefix and not maskop:
+                           if requiresEvexSpecifier and not maskop:
                               XMLInstr.attrib['asm'] = '{evex} ' + XMLInstr.attrib['asm']
                               stringSuffix += '_EVEX'
+                           if requiresVexSpecifier:
+                              XMLInstr.attrib['asm'] = '{vex} ' + XMLInstr.attrib['asm']
+                              stringSuffix += '_VEX'
 
                            if (ii.iclass != 'NOP') and any(x in ii.iform_enum for x in ['GPRv_GPRv_', 'GPR8_GPR8_', 'MMXq_MMXq_0', 'XMMss_XMMss_0',
                                                               'XMMps_XMMps_0', 'VMOVQ_XMMdq_XMMq_', 'XMMdq_XMMdq_XMMq_1', 'XMMsd_XMMsd_0', 'XMMdq_XMMdq_XMMd_1',
