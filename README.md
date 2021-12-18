@@ -4,15 +4,15 @@ The goal of this project is to create a machine-readable XML representation of t
 A particular use case for this is the automatic generation of microbenchmarks for measuring the performance of x86 instructions (see [uops.info](http://uops.info/)).
 
 We currently only consider instruction variants that can be used in 64-bit mode and that use an effective address size of 64 bits.
-The assembler code is intended to be used with the GNU assembler, using the [".intel_syntax noprefix" directive](http://www.sourceware.org/binutils/docs-2.12/as.info/i386-Syntax.html). 
+The assembler code is intended to be used with the GNU assembler, using the [".intel_syntax noprefix" directive](http://www.sourceware.org/binutils/docs-2.12/as.info/i386-Syntax.html).
 However, it should be relatively straightforward to adapt it to other assemblers.
 
 ## "Instruction variants" vs. XED iforms
 
-We consider a definition of "instruction variant" that is more fine-grained than XED's iforms. 
+We consider a definition of "instruction variant" that is more fine-grained than XED's iforms.
 For example, we consider versions of an instruction that use 32-bit and 64-bit general-purpose registers (i.e., that use a different effective operand size) to be different "instruction variants"; however, both versions have the same XED iform.
 
-The combination of an *XED iform* and the *agen*, *bcast*, *eosz*, *high8*, *immzero*, *mask*, *rep*, *sae*, and *zeroing* attributes uniquely identifies an "instruction variant".
+The combination of an *XED iform* and the *agen*, *bcast*, *eosz*, *high8*, *immzero*, *mask*, *rep*, *rm*, *sae*, and *zeroing* attributes uniquely identifies an "instruction variant".
 
 
 ## Generating assembler code for all instruction variants
@@ -32,4 +32,4 @@ This would, for example, be necessary if the configuration files in datafiles/ w
 
 ## uops.info
 
-On [uops.info](http://uops.info/), you can find a version of the instructions.xml file that is extended with latency, throughput, and port usage data for all generations of Intel's Core architecture (i.e., from Nehalem to Ice Lake).
+At [uops.info](http://uops.info/), you can find a version of the instructions.xml file that is extended with latency, throughput, and port usage data for all generations of Intel's Core architecture.

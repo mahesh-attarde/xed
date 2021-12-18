@@ -7,7 +7,7 @@ import xml.etree.ElementTree as ET
 from collections import defaultdict, namedtuple
 
 InstrDisas = namedtuple('InstrDisas', ['addr', 'opcode', 'asm', 'iform', 'extension', 'category', 'isaSet', 'regOperands', 'memOperands', 'rw', 'attributes'])
-allXmlAttributes = ['agen', 'bcast', 'eosz', 'high8', 'immzero', 'mask', 'rep', 'sae', 'zeroing']
+allXmlAttributes = ['agen', 'bcast', 'eosz', 'high8', 'immzero', 'mask', 'rep', 'rm', 'sae', 'zeroing']
 
 # Returns a list of InstrDisas tuples
 def parseXedOutput(output, useIACAMarkers=False):
@@ -86,6 +86,18 @@ def parseXedOutput(output, useIACAMarkers=False):
    return retList
 
 
+def matchAttributes(instrD, XMLInstr):
+   for k, v in XMLInstr.attrib.items():
+      if not k in allXmlAttributes: continue
+      if k == 'rm':
+         if instrD.attributes.get(k.upper(), '') not in v:
+            return False
+      else:
+         if instrD.attributes.get(k.upper(), '0') != v:
+            return False
+   return True
+
+
 # Disassembles a binary and finds for each instruction the corresponding entry in the XML file.
 # With the -iacaMarkers option, only the parts of the code that are between the IACA markers are considered.
 def main():
@@ -104,11 +116,14 @@ def main():
    for XMLInstr in root.iter('instruction'):
       iformToXML[XMLInstr.attrib['iform']].append(XMLInstr)
 
-   for instr in disas:
-      for XMLInstr in iformToXML[instr.iform]:
-         if all(instr.attributes.get(k.upper(), '0') == v for k, v in XMLInstr.attrib.items() if k in allXmlAttributes):
-            print(XMLInstr.attrib['string'] + ': ' + str(tuple(instr)))
-            break
+   for instrD in disas:
+      matchingEntries = [XMLInstr.attrib['string'] for XMLInstr in iformToXML[instrD.iform] if matchAttributes(instrD, XMLInstr)]
+      if not matchingEntries:
+         print('No XML entry found for ' + str(tuple(instrD)))
+      elif len(matchingEntries) > 1:
+         print('Multiple XML entries found for ' + str(tuple(instrD)) + ': ' + str(matchingEntries))
+      else:
+         print(str(tuple(instrD)) + ': ' + matchingEntries[0])
 
 if __name__ == "__main__":
     main()
