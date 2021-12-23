@@ -86,14 +86,14 @@ def parseXedOutput(output, useIACAMarkers=False):
    return retList
 
 
-def matchAttributes(instrD, XMLInstr):
-   for k, v in XMLInstr.attrib.items():
-      if not k in allXmlAttributes: continue
-      if k == 'rm':
-         if instrD.attributes.get(k.upper(), '') not in v:
+def matchAttributes(disasAttr, xmlAttr):
+   for k, v in xmlAttr.items():
+      if not k.lower() in allXmlAttributes: continue
+      if k.lower() == 'rm':
+         if disasAttr.get(k.upper(), '') not in v:
             return False
       else:
-         if instrD.attributes.get(k.upper(), '0') != v:
+         if disasAttr.get(k.upper(), '0') != v:
             return False
    return True
 
@@ -117,7 +117,7 @@ def main():
       iformToXML[XMLInstr.attrib['iform']].append(XMLInstr)
 
    for instrD in disas:
-      matchingEntries = [XMLInstr.attrib['string'] for XMLInstr in iformToXML[instrD.iform] if matchAttributes(instrD, XMLInstr)]
+      matchingEntries = [XMLInstr.attrib['string'] for XMLInstr in iformToXML[instrD.iform] if matchAttributes(instrD.attributes, XMLInstr.attrib)]
       if not matchingEntries:
          print('No XML entry found for ' + str(tuple(instrD)))
       elif len(matchingEntries) > 1:
