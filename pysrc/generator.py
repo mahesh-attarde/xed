@@ -478,8 +478,16 @@ def generateXMLFile(agi):
          if not eoszSet:
             vexvalidSet = findPossibleValuesForToken(ii.ipattern.bits, 'VEXVALID', {'MODE':[2], 'EASZ':[3]}, agi)
             oszSet = findPossibleValuesForToken(ii.ipattern.bits, 'OSZ', {'MODE':[2], 'EASZ':[3]}, agi)
-            if ((len(vexvalidSet) >= 1 and not (0 in vexvalidSet)) or (0 in oszSet) or ii.extension == 'RDWRFSGS' or
-                  ii.iform_enum in ['CRC32_GPRyy_GPR8b', 'CRC32_GPRyy_MEMb', 'XSTORE'] or 'REP' in ii.iclass):
+            rexw = findPossibleValuesForToken(ii.ipattern.bits, 'REXW', {'MODE':[2], 'EASZ':[3]}, agi)
+
+            if oszSet == {1}:
+               eoszSet = {1}
+            elif rexw == {1}:
+               eoszSet = {3}
+            elif ('REP' in ii.iclass) or ('IRET' in ii.iclass):
+               eoszSet = {2}
+            elif ((len(vexvalidSet) >= 1 and not (0 in vexvalidSet)) or (0 in oszSet) or ii.extension == 'RDWRFSGS' or
+                  ii.iform_enum in ['CRC32_GPRyy_GPR8b', 'CRC32_GPRyy_MEMb', 'XSTORE']):
                eoszSet = {2,3}
             elif ii.iform_enum in ['MOV_GPRv_IMMz']:
                # there is no assembler code to emit these encodings for smaller eosz
@@ -583,13 +591,13 @@ def generateXMLFile(agi):
                                  XMLInstr.attrib['asm'] += 'W'
                                  stringSuffix += '_W'
                               if eosz == 3:
-                                 if (ii.iclass in ['XBEGIN', 'XSTORE']):
+                                 if (ii.iclass in ['REP_INSD', 'REP_OUTSD', 'XBEGIN', 'XSTORE']):
                                     XMLInstr.attrib['asm'] = 'REX64 ' + XMLInstr.attrib['asm']
                                     stringSuffix += '_REX64'
                                  elif ii.iclass in ['RET_FAR']:
                                     XMLInstr.attrib['asm'] += 'Q'
                                     stringSuffix += '_Q'
-                              if ii.iclass in ['PCMPESTRI64', 'PCMPESTRM64', 'PCMPISTRI64', 'VPCMPESTRI64', 'VPCMPESTRM64', 'VPCMPISTRI64']:
+                              if ii.iclass in ['SYSRET64', 'PCMPESTRI64', 'PCMPESTRM64', 'PCMPISTRI64', 'VPCMPESTRI64', 'VPCMPESTRM64', 'VPCMPISTRI64']:
                                  XMLInstr.attrib['asm'] += 'Q'
 
                               if requiresEvexSpecifier and not maskop:

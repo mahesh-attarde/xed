@@ -13,6 +13,10 @@ def main():
       if any(x in instrNode.attrib['isa-set'] for x in ['FP16']):
          continue
 
+      # Deprecated instruction set extensions
+      if instrNode.attrib['extension'] in ['MPX']:
+         continue
+
       asm = instrNode.attrib['asm']
       first = True
       for operandNode in instrNode.iter('operand'):
