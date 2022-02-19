@@ -504,8 +504,8 @@ def generateXMLFile(agi):
             rex = (0 if high8RegNames else None)
             for rmBits in ([[0, 1, 2, 3], [4, 5, 6, 7]] if hasGPR8RmOperand and hasImm and (not high8RegNames) else [None]):
                for immzero in ([True, False] if (hasExplicitImm8 and ii.extension == 'BASE') else [None]):
-                  for agen in (['R', 'R_D8', 'R_D32', 'B', 'I', 'IS', 'D8', 'D32', 'B_I', 'B_IS','B_D8', 'B_D32', 'I_D8', 'IS_D8', 'I_D32', 'IS_D32', 'B_I_D8',
-                              'B_IS_D8', 'B_I_D32', 'B_IS_D32'] if hasAGENOperand else [None]):
+                  for agen in (['R_D32', 'B', 'D32', 'B_I', 'B_IS','B_D8', 'B_D32', 'I_D32', 'IS_D32', 'B_I_D8', 'B_IS_D8', 'B_I_D32', 'B_IS_D32']
+                                if hasAGENOperand else [None]):
                      if agen is not None and 'R' in agen and ii.attributes and 'NO_RIP_REL' in ii.attributes:
                         continue
                      for broadcast in ([False,True] if ii.attributes and 'BROADCAST_ENABLED' in ii.attributes else [False]):
@@ -586,12 +586,13 @@ def generateXMLFile(agi):
 
                               if ii.iclass == 'RET_FAR':
                                  XMLInstr.attrib['asm'] = 'RETF'
-                              if eosz == 1 and (ii.iclass in ['ENTER', 'LEAVE', 'RET_FAR'] or
-                                                ii.iform_enum in ['POP_FS', 'POP_GS', 'PUSH_FS', 'PUSH_GS', 'PUSH_IMMb', 'PUSH_IMMz']):
+                              if (eosz == 1 and (ii.iclass in ['ENTER', 'LEAVE', 'RET_FAR'] or
+                                                ii.iform_enum in ['POP_FS', 'POP_GS', 'PUSH_FS', 'PUSH_GS', 'PUSH_IMMb', 'PUSH_IMMz']) or
+                                    ii.iform_enum in ['FLDENV_MEMmem14', 'FNSTENV_MEMmem14', 'FNSAVE_MEMmem94', 'FRSTOR_MEMmem94']):
                                  XMLInstr.attrib['asm'] += 'W'
                                  stringSuffix += '_W'
                               if eosz == 3:
-                                 if (ii.iclass in ['REP_INSD', 'REP_OUTSD', 'XBEGIN', 'XSTORE']):
+                                 if (ii.iclass in ['REP_INSD', 'REP_OUTSD', 'SLDT', 'STR', 'XBEGIN', 'XSTORE']) or (ii.iform_enum in ['MOV_GPRv_SEG']):
                                     XMLInstr.attrib['asm'] = 'REX64 ' + XMLInstr.attrib['asm']
                                     stringSuffix += '_REX64'
                                  elif ii.iclass in ['RET_FAR']:
@@ -669,7 +670,8 @@ def generateXMLFile(agi):
                                     XMLOperand.attrib['w'] = '1'
                                  if 'cw' in operand.rw:
                                     XMLOperand.attrib['conditionalWrite'] = '1'
-                                 if operand.visibility == 'SUPPRESSED' or (operand.visibility == 'IMPLICIT' and ii.category in ['X87_ALU']):
+                                 if operand.visibility == 'SUPPRESSED' or ((ii.category in ['X87_ALU']) and (operand.visibility == 'IMPLICIT')
+                                                                           and ((operand.name == 'REG0') or (ii.iclass in ['FST','FSTP']))):
                                     XMLOperand.attrib['suppressed'] = '1'
                                  elif operand.visibility == 'IMPLICIT':
                                     XMLOperand.attrib['implicit'] = '1'
