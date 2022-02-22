@@ -15,12 +15,15 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
-#  
+#
 #END_LEGAL
 
 
 import sys
 import os
+
+from platform import system
+from setuptools import setup, Extension
 
 # Assume mbuild is next to the current source directory
 # put mbuild on the import path
@@ -47,7 +50,7 @@ def try_mbuild_import():
         return True
     except:
         return False
-    
+
 def find_mbuild_import():
     if try_mbuild_import():
         # mbuild is already findable by PYTHONPATH. Nothing required from
@@ -68,28 +71,28 @@ def find_mbuild_import():
         mbuild_install_path = mbuild_install_path_relative
         if not os.path.exists(mbuild_install_path):
             s = "mfile.py cannot find the mbuild directory: [%s] or [%s]"
-            fatal(s % (mbuild_install_path_derived, 
+            fatal(s % (mbuild_install_path_derived,
                        mbuild_install_path_relative))
 
     # modify the environment python path so that the imported modules
     # (enumer,codegen) can find mbuild.
-    
+
     if 'PYTHONPATH' in os.environ:
         sep = ':'
         os.environ['PYTHONPATH'] =  mbuild_install_path + sep +  \
                                     os.environ['PYTHONPATH']
     else:
-        os.environ['PYTHONPATH'] =  mbuild_install_path 
+        os.environ['PYTHONPATH'] =  mbuild_install_path
 
     sys.path.insert(0,mbuild_install_path)
-    
+
 def work():
     if sys.version_info[0] == 3:
-        if sys.version_info[1] < 4:        
+        if sys.version_info[1] < 4:
             fatal("Need python version 3.4 or later.")
     else:
         fatal("Need python version 3.4 or later.")
-        
+
     try:
         find_mbuild_import()
     except:
@@ -104,8 +107,43 @@ def work():
         except Exception as e:
             xed_build_common.handle_exception_and_die(e)
     return retval
-    
+
+def buildPyModule():
+    setup(name='xed',
+        version='1.0',
+        options={'build':{'build_lib':'.'}},
+        script_args=['build'],
+        ext_modules=[
+            Extension('xed',
+                include_dirs = ['obj/wkit/include'],
+                library_dirs = ['obj/wkit/lib'],
+                libraries = ['xed'],
+                define_macros = [('PYTHON', None)],
+                sources = ['examples/xed-examples-util.c',
+                           'examples/xed-nm-symtab.c',
+                           'examples/xed-disas-raw.c',
+                           'examples/xed-dot-prep.c',
+                           'examples/xed-symbol-table.c',
+                           'examples/xed-dot.c',
+                           'examples/avltree.c',
+                           'examples/xed-disas-elf.c',
+                           'examples/xed-disas-macho.c'] +
+                           (['examples/xed-disas-pecoff.cpp'] if system() == 'Windows' else [])
+            )
+        ]
+    )
+
 if __name__ == "__main__":
+    buildpm = False
+    if 'pymodule' in sys.argv:
+        buildpm = True
+        sys.argv.remove('pymodule')
+        sys.argv.append('--extra-flags=-fPIC')
+
     retval = work()
-    sys.exit(retval)
- 
+    if retval:
+        sys.exit(retval)
+
+    if buildpm:
+        buildPyModule()
+

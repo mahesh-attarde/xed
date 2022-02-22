@@ -1,4 +1,4 @@
-/*BEGIN_LEGAL 
+/*BEGIN_LEGAL
 
 Copyright (c) 2019 Intel Corporation
 
@@ -13,7 +13,7 @@ Copyright (c) 2019 Intel Corporation
   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
   See the License for the specific language governing permissions and
   limitations under the License.
-  
+
 END_LEGAL */
 
 #include "xed-disas-elf.h"  // early, to get defines
@@ -126,12 +126,12 @@ static void read_dwarf_line_numbers(void* region,
     int dres;
     Dwarf_Debug dbg;
     Dwarf_Unsigned next_cu_offset;;
-    
+
     elf_version(EV_CURRENT);
 
     Elf* elf = elf_memory(XED_STATIC_CAST(char*,region), region_bytes);
     dres = dwarf_elf_init(elf, DW_DLC_READ, dwarf_handler, 0, &dbg, 0);
-    if (dres != DW_DLV_OK) 
+    if (dres != DW_DLV_OK)
         return;
 
     avl_tree_init(&line_number_table);
@@ -147,7 +147,7 @@ static void read_dwarf_line_numbers(void* region,
         Dwarf_Signed line_count;
 
         dres = dwarf_next_cu_header(dbg, 0, 0, 0, 0, &next_cu_offset, 0);
-        if (dres != DW_DLV_OK) 
+        if (dres != DW_DLV_OK)
             break;
         // Doc says first die is compilation unit
         if (dwarf_siblingof(dbg, 0, &cu_die, 0) != DW_DLV_OK)
@@ -171,7 +171,7 @@ static void read_dwarf_line_numbers(void* region,
             Dwarf_Signed line_off;
             Dwarf_Bool line_end;
             char* file_name;
-            
+
             dwarf_lineaddr(line_buf[i], &line_addr, 0);
             dwarf_lineno(line_buf[i], &line_num, 0);
             dwarf_line_srcfileno(line_buf[i], &file_num, 0);
@@ -182,13 +182,13 @@ static void read_dwarf_line_numbers(void* region,
             {
                 dres = dwarf_linesrc(line_buf[i], &file_name, 0);
                 if (dres == DW_DLV_OK) {
-                    
+
                     if ( avl_find(&file_name_table, file_num) == 0)
                     {
                         avl_insert(&file_name_table,
                                    file_num,
                                    (void*)(xed_addr_t)global_file_num,0);
-                        
+
                         avl_insert(&global_file_name_table,
                                    global_file_num,
                                    xed_strdup(file_name),1);
@@ -217,7 +217,7 @@ static void read_dwarf_line_numbers(void* region,
 ////////////////////////////////////////////////////////////////////////////
 
 
-char* 
+char*
 lookup32(Elf32_Word stoffset,
          void* start,
          unsigned int len,
@@ -232,7 +232,7 @@ lookup32(Elf32_Word stoffset,
     return q;
 }
 
-char* 
+char*
 lookup64(Elf64_Word stoffset,
 	 void* start,
          unsigned int len,
@@ -258,7 +258,7 @@ disas_test32(xed_disas_info_t* fi,
 	     void* start,
              unsigned int length,
 	     Elf32_Off offset,
-	     Elf32_Word size, 
+	     Elf32_Word size,
              Elf32_Addr runtime_vaddr,
              xed_symbol_table_t* symbol_table)
 {
@@ -308,11 +308,11 @@ disas_test64(xed_disas_info_t* fi,
       fprintf(stderr,"# malformed region limit. stopping\n");
       exit(1);
   }
-  
+
   fi->q = fi->a + size; // end of region
   if (fi->q > hard_limit)
       fi->q = hard_limit;
-  
+
   fi->runtime_vaddr = runtime_vaddr + fi->fake_base;
   fi->runtime_vaddr_disas_start = fi->addr_start;
   fi->runtime_vaddr_disas_end = fi->addr_end;
@@ -327,14 +327,14 @@ disas_test64(xed_disas_info_t* fi,
   xed_disas_test(fi);
 }
 
-#if !defined(EM_IAMCU)  
+#if !defined(EM_IAMCU)
 # define EM_IAMCU 3
 #endif
 
 static int check_binary_32b(void* start) {
     Elf32_Ehdr* elf_hdr = (Elf32_Ehdr*) start;
     if ( elf_hdr->e_machine == EM_386   ||
-         elf_hdr->e_machine == EM_IAMCU )  
+         elf_hdr->e_machine == EM_IAMCU )
         return 1;
     return 0;
 }
@@ -361,22 +361,22 @@ process_elf32(xed_disas_info_t* fi,
 
     if ((void*)shp < start)
         return;
-            
+
     for(i=0;i<nsect;i++) {
         char* name;
         xed_bool_t text = 0;
-        
+
         if (range_check(shp+i, sizeof(Elf32_Shdr), start, hard_limit))
             break;
         if (range_check(shp+sect_strings, sizeof(Elf32_Shdr), start, hard_limit))
             break;
-                
+
         name = lookup32(shp[i].sh_name, start,  length,
                         shp[sect_strings].sh_offset);
 
         if (shp[i].sh_type == SHT_PROGBITS) {
             if (fi->target_section) {
-                if (name && strcmp(fi->target_section, name)==0) 
+                if (name && strcmp(fi->target_section, name)==0)
                     text = 1;
             }
             else if (shp[i].sh_flags & SHF_EXECINSTR)
@@ -384,18 +384,20 @@ process_elf32(xed_disas_info_t* fi,
         }
 
         if (text && name) {
+#ifndef PYTHON
             if (fi->xml_format == 0) {
                 printf("# SECTION " XED_FMT_D " ", i);
                 printf("%25s ", name);
                 printf("addr " XED_FMT_LX " ",
-                       XED_STATIC_CAST(xed_uint64_t,shp[i].sh_addr)); 
+                       XED_STATIC_CAST(xed_uint64_t,shp[i].sh_addr));
                 printf("offset " XED_FMT_LX " ",
                        XED_STATIC_CAST(xed_uint64_t,shp[i].sh_offset));
-                printf("size " XED_FMT_LU " ", 
+                printf("size " XED_FMT_LU " ",
                        XED_STATIC_CAST(xed_uint64_t,shp[i].sh_size));
-                printf("type " XED_FMT_LU "\n", 
+                printf("type " XED_FMT_LU "\n",
                        XED_STATIC_CAST(xed_uint64_t,shp[i].sh_type));
             }
+#endif
 
             xst_set_current_table(symbol_table,i);
             disas_test32(fi,
@@ -424,7 +426,7 @@ int check_binary_64b(void* start) {
     Elf64_Ehdr* elf_hdr = (Elf64_Ehdr*) start;
     if (elf_hdr->e_machine == EM_X86_64 ||
         elf_hdr->e_machine == EM_L1OM ||
-        elf_hdr->e_machine == EM_K1OM) 
+        elf_hdr->e_machine == EM_K1OM)
         return 1;
     return 0;
 }
@@ -446,27 +448,27 @@ process_elf64(xed_disas_info_t* fi,
     unsigned int i;
     xed_bool_t text = 0;
 
-    if (CLIENT_VERBOSE1) 
+    if (CLIENT_VERBOSE1)
         printf("# sections %d\n" , nsect);
-    
+
     if ((void*)shp < start)
         return;
 
     for( i=0;i<nsect;i++)  {
         char* name = 0;
-        
+
         if (range_check(shp+i,sizeof(Elf64_Shdr), start, hard_limit))
             break;
         if (range_check(shp+sect_strings,sizeof(Elf64_Shdr), start, hard_limit))
             break;
-        
+
         name = lookup64(shp[i].sh_name, start, length,
                         shp[sect_strings].sh_offset);
-        
+
         text = 0;
         if (shp[i].sh_type == SHT_PROGBITS) {
             if (fi->target_section) {
-                if (name && strcmp(fi->target_section, name)==0) 
+                if (name && strcmp(fi->target_section, name)==0)
                     text = 1;
             }
             else if (shp[i].sh_flags & SHF_EXECINSTR)
@@ -474,19 +476,21 @@ process_elf64(xed_disas_info_t* fi,
         }
 
         if (text && name) {
+#ifndef PYTHON
             if (fi->xml_format == 0) {
                 printf("# SECTION " XED_FMT_U " ", i);
                 printf("%25s ", name);
                 printf("addr " XED_FMT_LX " ",
-                       XED_STATIC_CAST(xed_uint64_t,shp[i].sh_addr)); 
+                       XED_STATIC_CAST(xed_uint64_t,shp[i].sh_addr));
                 printf("offset " XED_FMT_LX " ",
                        XED_STATIC_CAST(xed_uint64_t,shp[i].sh_offset));
-                printf("size " XED_FMT_LU "\n", 
+                printf("size " XED_FMT_LU "\n",
                        XED_STATIC_CAST(xed_uint64_t,shp[i].sh_size));
             }
+#endif
             xst_set_current_table(symbol_table,i);
-            disas_test64(fi, 
-                         start, length, shp[i].sh_offset, shp[i].sh_size, 
+            disas_test64(fi,
+                         start, length, shp[i].sh_offset, shp[i].sh_size,
                          shp[i].sh_addr, symbol_table);
         }
     }
@@ -516,11 +520,11 @@ void read_symbols64(void* start,
             if (name && xed_strlen(name) > 0) {
                 xst_add_local_symbol(
                     symtab,
-                    XED_STATIC_CAST(xed_uint64_t,p->st_value), 
+                    XED_STATIC_CAST(xed_uint64_t,p->st_value),
                     name, p->st_shndx);
             }
         }
-        p++; 
+        p++;
     }
 }
 
@@ -529,23 +533,27 @@ void read_symbols64(void* start,
 
 static void print_comment64(unsigned int i, Elf64_Shdr* shp, char const* const s)
 {
+#ifndef PYTHON
     fprintf(stdout,"# Found %s: %u",s, i);
     // NOTE: casts required here because android gcc4.8.0 uses long long
     // int for 64b integer and android-5 gcc490 uses long int.
     fprintf(stdout," offset " XED_FMT_LX, (xed_uint64_t) shp[i].sh_offset);
     fprintf(stdout," size " XED_FMT_LX "\n", (xed_uint64_t) shp[i].sh_size);
+#endif
 }
 static void print_comment32(unsigned int i, Elf32_Shdr* shp, char const* const s)
 {
+#ifndef PYTHON
     fprintf(stdout,"# Found %s: %u",s,i);
     fprintf(stdout," offset %u",shp[i].sh_offset);
     fprintf(stdout," size %u\n", shp[i].sh_size);
+#endif
 }
 
 
 
 static void
-symbols_elf64(xed_disas_info_t* fi, 
+symbols_elf64(xed_disas_info_t* fi,
               void* start,
               unsigned int len,
               xed_symbol_table_t* symtab) {
@@ -553,7 +561,7 @@ symbols_elf64(xed_disas_info_t* fi,
     Elf64_Off shoff = elf_hdr->e_shoff;  // section hdr table offset
     Elf64_Shdr* shp = (Elf64_Shdr*) ((char*)start + shoff);
     Elf64_Half nsect = elf_hdr->e_shnum;
-    if (CLIENT_VERBOSE1) 
+    if (CLIENT_VERBOSE1)
         printf("# sections %d\n" , nsect);
     unsigned int i;
     Elf64_Half sect_strings  = elf_hdr->e_shstrndx;
@@ -564,7 +572,7 @@ symbols_elf64(xed_disas_info_t* fi,
     /* find the string_table_offset and the dynamic_string_table_offset */
     if ((void*)shp < start)
         return;
-    
+
     for( i=0;i<nsect;i++)  {
         if (range_check(shp+i, sizeof(Elf64_Shdr), start, hard_limit)) {
             break;
@@ -602,7 +610,7 @@ symbols_elf64(xed_disas_info_t* fi,
             if (fi->xml_format == 0) {
                 print_comment64(i,shp, "symtab");
             }
-            read_symbols64(start, len, shp[i].sh_offset, shp[i].sh_size, 
+            read_symbols64(start, len, shp[i].sh_offset, shp[i].sh_size,
                            string_table_offset,symtab);
         }
         else if (shp[i].sh_type == SHT_DYNSYM && dynamic_string_table_offset) {
@@ -627,11 +635,11 @@ read_symbols32(void* start,
     char* a = XED_STATIC_CAST(char*,start);
     Elf32_Sym* p = XED_STATIC_CAST(Elf32_Sym*,a + offset);
     Elf32_Sym* q = XED_STATIC_CAST(Elf32_Sym*,a + offset + size);
-    
+
     unsigned char* hard_limit = (unsigned char*)start + len;
     if ((void*)p < start)
         return;
-    
+
     if ((unsigned char*) p + sizeof(Elf32_Sym) > hard_limit)
         p =  (Elf32_Sym*)hard_limit;
     if ((unsigned char*) q > hard_limit)
@@ -643,18 +651,18 @@ read_symbols32(void* start,
             if (name && xed_strlen(name) > 0) {
                 xst_add_local_symbol(
                     symtab,
-                    XED_STATIC_CAST(xed_uint64_t,p->st_value), 
+                    XED_STATIC_CAST(xed_uint64_t,p->st_value),
                     name, p->st_shndx);
             }
         }
-        p++; 
+        p++;
     }
 }
 
 
 
 static void
-symbols_elf32(xed_disas_info_t* fi, 
+symbols_elf32(xed_disas_info_t* fi,
               void* start,
               unsigned int len,
               xed_symbol_table_t* symtab)
@@ -663,7 +671,7 @@ symbols_elf32(xed_disas_info_t* fi,
     Elf32_Off shoff = elf_hdr->e_shoff;  // section hdr table offset
     Elf32_Shdr* shp = (Elf32_Shdr*) ((char*)start + shoff);
     Elf32_Half nsect = elf_hdr->e_shnum;
-    if (CLIENT_VERBOSE1) 
+    if (CLIENT_VERBOSE1)
         printf("# sections %d\n" , nsect);
     unsigned int i;
     Elf32_Off string_table_offset=0;
@@ -706,14 +714,14 @@ symbols_elf32(xed_disas_info_t* fi,
     for( i=0;i<nsect;i++)  {
         if (range_check(shp+i, sizeof(Elf32_Shdr), start, hard_limit))
             break;
-        
+
         if (shp[i].sh_type == SHT_SYMTAB && string_table_offset) {
             if (fi->xml_format == 0) {
                 print_comment32(i,shp, "symtab");
             }
-            read_symbols32(start, len, shp[i].sh_offset, shp[i].sh_size, 
+            read_symbols32(start, len, shp[i].sh_offset, shp[i].sh_size,
                            string_table_offset, symtab);
-        } 
+        }
         else if (shp[i].sh_type == SHT_DYNSYM && dynamic_string_table_offset)
         {
             if (fi->xml_format == 0) {
@@ -727,12 +735,12 @@ symbols_elf32(xed_disas_info_t* fi,
 
 
 void
-xed_disas_elf(xed_disas_info_t* fi) 
+xed_disas_elf(xed_disas_info_t* fi)
 {
     void* region = 0;
     unsigned int len = 0;
     xed_symbol_table_t symbol_table;
-    
+
     xed_disas_elf_init();
     xed_map_region(fi->input_file_name, &region, &len);
     xed_symbol_table_init(&symbol_table);
@@ -741,7 +749,7 @@ xed_disas_elf(xed_disas_info_t* fi)
     if (fi->line_numbers)
         read_dwarf_line_numbers(region,len);
 #endif
-    
+
     if (check_binary_64b(region)) {
         if (fi->sixty_four_bit == 0 && fi->use_binary_mode) {
             /* modify the default dstate values because we were not expecting a
@@ -765,7 +773,7 @@ xed_disas_elf(xed_disas_info_t* fi)
         xed_print_encode_stats(fi);
     }
 }
- 
+
 
 
 #endif

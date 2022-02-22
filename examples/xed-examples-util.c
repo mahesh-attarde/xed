@@ -1,4 +1,4 @@
-/*BEGIN_LEGAL 
+/*BEGIN_LEGAL
 
 Copyright (c) 2019 Intel Corporation
 
@@ -13,7 +13,7 @@ Copyright (c) 2019 Intel Corporation
   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
   See the License for the specific language governing permissions and
   limitations under the License.
-  
+
 END_LEGAL */
 
 #include "xed/xed-interface.h"
@@ -39,6 +39,17 @@ END_LEGAL */
 #include "pti-xed-test.h"
 #endif
 
+
+#ifdef PYTHON
+ # include <Python.h>
+ #include "xed-disas-elf.h"
+ #include "xed-disas-macho.h"
+ #include "xed-disas-pecoff.h"
+ #include "xed-disas-raw.h"
+
+ static void add_instr_to_pyList(xed_disas_info_t* di, xed_decoded_inst_t* xedd, xed_uint64_t runtime_instruction_address, unsigned char* z);
+#endif
+
 #define DCAST(x) XED_STATIC_CAST(double,(x))
 #define XCAST(x) XED_STATIC_CAST(xed_int64_t,(x))
 #define U64CAST(x) XED_STATIC_CAST(xed_uint64_t,(x))
@@ -50,7 +61,7 @@ END_LEGAL */
 
 
 #define XED_HISTO_MAX_CYCLES 10000 // must be divisible by cycles/bin
-#define XED_HISTO_CYCLES_PER_BIN 50 
+#define XED_HISTO_CYCLES_PER_BIN 50
 #define XED_HISTO_BINS (XED_HISTO_MAX_CYCLES/XED_HISTO_CYCLES_PER_BIN)
 
 typedef struct {
@@ -93,7 +104,7 @@ init_histogram(xed_stats_t* p)
 
 static void
 xed_stats_update(xed_stats_t* p,
-                 xed_uint64_t t1, 
+                 xed_uint64_t t1,
                  xed_uint64_t t2)
 {
     if (t2 > t1)
@@ -107,7 +118,7 @@ xed_stats_update(xed_stats_t* p,
     p->total_insts++;
     p->reset_counter++;
     if (p->reset_counter == 50) {
-        if (CLIENT_VERBOSE1) 
+        if (CLIENT_VERBOSE1)
             printf("\n\nRESETTING STATS\n\n");
         // to ignore startup transients paging everything in.
         init_histogram(p);
@@ -143,7 +154,7 @@ xed_stats_zero(xed_stats_t* p,
 }
 #endif
 
-static xed_stats_t xed_dec_stats; 
+static xed_stats_t xed_dec_stats;
 static xed_stats_t xed_enc_stats;
 
 void xed_disas_info_init(xed_disas_info_t* p)
@@ -152,7 +163,7 @@ void xed_disas_info_init(xed_disas_info_t* p)
 }
 
 xed_syntax_enum_t global_syntax = XED_SYNTAX_INTEL;
-int client_verbose=0; 
+int client_verbose=0;
 
 ////////////////////////////////////////////////////////////////////////////
 
@@ -168,7 +179,7 @@ static char xed_toupper(char c) {
 char* xed_upcase_buf(char* s) {
     xed_uint_t len = XED_STATIC_CAST(xed_uint_t,strlen(s));
     xed_uint_t i;
-    for(i=0 ; i < len ; i++ ) 
+    for(i=0 ; i < len ; i++ )
         s[i] = xed_toupper(s[i]);
     return s;
 }
@@ -180,11 +191,11 @@ static xed_uint8_t letter_cvt(char a, char base) {
 static xed_uint8_t convert_nibble(char x) {
     // convert ascii nibble to hex
     xed_uint8_t rv = 0;
-    if (x >= '0' && x <= '9') 
+    if (x >= '0' && x <= '9')
         rv = letter_cvt(x, '0');
-    else if (x >= 'A' && x <= 'F') 
+    else if (x >= 'A' && x <= 'F')
         rv = (xed_uint8_t)(letter_cvt(x,'A') + 10U);
-    else if (x >= 'a' && x <= 'f') 
+    else if (x >= 'a' && x <= 'f')
         rv = (xed_uint8_t)(letter_cvt(x,'a') + 10U);
     else    {
         printf("Error converting hex digit. Nibble value 0x%x\n", x);
@@ -198,7 +209,7 @@ xed_int64_t xed_atoi_hex(char* buf) {
     xed_int64_t o=0;
     xed_uint_t i;
     xed_uint_t len = XED_STATIC_CAST(xed_uint_t,strlen(buf));
-    for(i=0; i<len ; i++) 
+    for(i=0; i<len ; i++)
         o = o*16 + convert_nibble(buf[i]);
     return o;
 }
@@ -264,7 +275,7 @@ static char nibble_to_ascii_hex(xed_uint8_t i) {
 
 void xed_print_hex_line(char* buf,
                         const xed_uint8_t* array,
-                        const unsigned int length, 
+                        const unsigned int length,
                         const unsigned int buflen)
 {
   unsigned int n = length;
@@ -320,7 +331,7 @@ decode_internal(xed_decoded_inst_t* xedd,
     if (err == XED_ERROR_NONE)
         write(fd, itext, xed_decoded_inst_get_length(xedd));
 #endif
-    
+
     return err;
 }
 #endif
@@ -340,7 +351,7 @@ void init_xedd(xed_decoded_inst_t* xedd,
 #if defined(XED_CET)
     xed3_operand_set_cet(xedd, di->cet_mode);
 #endif
-    if (di->operand != XED_OPERAND_INVALID) 
+    if (di->operand != XED_OPERAND_INVALID)
         xed3_set_generic_operand(xedd, di->operand, di->operand_value);
 }
 
@@ -354,12 +365,12 @@ dump_histo(xed_uint64_t* histo,
     xed_uint32_t i=0;
     xed_uint64_t total=0;
     double cdf = 0;
-    for(i=0;i<bins;i++) 
+    for(i=0;i<bins;i++)
         total += histo[i];
 
     if (total == 0)
         return;
-    
+
     for(i=0;i<bins;i++)
     {
         double pct = 100.0*DCAST(histo[i])/DCAST(total);
@@ -376,10 +387,11 @@ dump_histo(xed_uint64_t* histo,
 
 static void
 print_decode_stats_internal( xed_disas_info_t*di,
-                             xed_stats_t* p, 
+                             xed_stats_t* p,
                              const char* sname,
-                             const char* dec_enc  ) 
+                             const char* dec_enc  )
 {
+#ifndef PYTHON
     double cpi;
     double cpi_tail;
     printf("#%s %s STATS\n", sname, dec_enc);
@@ -401,6 +413,7 @@ print_decode_stats_internal( xed_disas_info_t*di,
 
     if (p->bad_times)
         printf("#Bad times: " XED_FMT_LU "\n", p->bad_times);
+#endif
 
     if (di->histo)
         dump_histo(p->histo, XED_HISTO_BINS, XED_HISTO_CYCLES_PER_BIN);
@@ -408,7 +421,9 @@ print_decode_stats_internal( xed_disas_info_t*di,
 
 void xed_print_decode_stats(xed_disas_info_t* di)
 {
+#ifndef PYTHON
     print_decode_stats_internal(di, &xed_dec_stats, "XED3", "DECODE");
+#endif
 }
 
 void xed_print_encode_stats(xed_disas_info_t* di)
@@ -423,17 +438,21 @@ xed_map_region(const char* path,
                void** start,
                unsigned int* length)
 {
-#if defined(_WIN32) 
+#if defined(_WIN32)
     FILE* f;
     size_t t,ilen;
     xed_uint8_t* p;
 #if defined(XED_MSVC8_OR_LATER) && !defined(PIN_CRT)
     errno_t err;
+#ifndef PYTHON
     fprintf(stderr,"#Opening %s\n", path);
+#endif
     err = fopen_s(&f,path,"rb");
 #else
     int err=0;
+#ifndef PYTHON
     fprintf(stderr,"#Opening %s\n", path);
+#endif
     f = fopen(path,"rb");
     err = (f==0);
 #endif
@@ -447,7 +466,9 @@ xed_map_region(const char* path,
         exit(1);
     }
     ilen = ftell(f);
+#ifndef PYTHON
     fprintf(stderr,"#Trying to read " XED_FMT_SIZET "\n", ilen);
+#endif
     p = (xed_uint8_t*)malloc(ilen);
     assert(p!=0);
     t=0;
@@ -456,7 +477,7 @@ xed_map_region(const char* path,
         fprintf(stderr,"ERROR: Could not fseek to start of file %s\n", path);
         exit(1);
     }
-    
+
     while(t < ilen) {
         size_t n;
         if (feof(f)) {
@@ -465,8 +486,10 @@ xed_map_region(const char* path,
         }
         n = fread(p+t, 1, ilen-t,f);
         t = t+n;
-        fprintf(stderr,"#Read " XED_FMT_SIZET " of " XED_FMT_SIZET " bytes\n", 
+#ifndef PYTHON
+        fprintf(stderr,"#Read " XED_FMT_SIZET " of " XED_FMT_SIZET " bytes\n",
                 t, ilen);
+#endif
         if (ferror(f)) {
             fprintf(stderr, "Error in file read. Stopping.\n");
             break;
@@ -475,8 +498,8 @@ xed_map_region(const char* path,
     fclose(f);
     *start = p;
     *length = (unsigned int)ilen;
-    
-#else 
+
+#else
     off_t ilen;
     int fd;
     fd = open(path, O_RDONLY);
@@ -487,7 +510,7 @@ xed_map_region(const char* path,
     ilen = lseek(fd, 0, SEEK_END); // find the size.
     if (ilen == -1)
         xedex_derror("lseek failed");
-    else 
+    else
         *length = (unsigned int) ilen;
 
     lseek(fd, 0, SEEK_SET); // go to the beginning
@@ -523,7 +546,7 @@ void disassemble(xed_disas_info_t* di,
                  int buflen,
                  xed_decoded_inst_t* xedd,
                  xed_uint64_t runtime_instruction_address,
-                 void* caller_data) 
+                 void* caller_data)
 {
     xed_bool_t ok;
     xed_print_info_t pi;
@@ -539,13 +562,13 @@ void disassemble(xed_disas_info_t* di,
     // xed_register_disassembly_callback(). If nonzero, it would be a
     // function pointer to a disassembly callback routine. See xed-disas.h
     pi.disassembly_callback = registered_disasm_callback;
-    
+
     pi.runtime_address = runtime_instruction_address;
     pi.syntax = global_syntax;
     pi.format_options_valid = 1;
     pi.format_options = di->format_options;
     pi.buf[0]=0; //allow use of strcat
-    
+
     ok = xed_format_generic(&pi);
     if (!ok)
     {
@@ -558,14 +581,14 @@ void disassemble(xed_disas_info_t* di,
 }
 
 void xed_decode_error( xed_uint64_t runtime_instruction_address,
-                       xed_uint64_t offset, 
-                       const xed_uint8_t* ptr, 
+                       xed_uint64_t offset,
+                       const xed_uint8_t* ptr,
                        xed_error_enum_t xed_error,
                        xed_uint_t length)
 {
     char buf[XED_HEX_BUFLEN];
-    printf("ERROR: %s Could not decode at offset: 0x" 
-           XED_FMT_LX " len: %d PC: 0x" XED_FMT_LX ": [", 
+    printf("ERROR: %s Could not decode at offset: 0x"
+           XED_FMT_LX " len: %d PC: 0x" XED_FMT_LX ": [",
            xed_error_enum_t2str(xed_error),
            offset,
            length,
@@ -583,11 +606,11 @@ print_hex_line(const xed_uint8_t* p,
         unsigned int lim = XED_HEX_BUFLEN/2;
         if (length < lim)
             lim = length;
-        xed_print_hex_line(buf,p, lim, XED_HEX_BUFLEN); 
+        xed_print_hex_line(buf,p, lim, XED_HEX_BUFLEN);
         printf("%s\n", buf);
 }
 
-static void 
+static void
 print_attributes(xed_decoded_inst_t* xedd) {
     /* Walk the attributes. Generally, you'll know the one you want to
      * query and just access that one directly. */
@@ -626,7 +649,7 @@ disas_decode_binary(xed_disas_info_t* di,
     xed_error = decode_internal(xedd, hex_decode_text, bytes);
     t2 = xed_get_time();
     okay = (xed_error == XED_ERROR_NONE);
-    
+
 #if defined(PTI_XED_TEST)
     if (okay)
         pti_xed_test(xedd,hex_decode_text, bytes, runtime_address);
@@ -636,7 +659,7 @@ disas_decode_binary(xed_disas_info_t* di,
         xed_uint64_t delta = t2-t1;
         printf("Decode time = " XED_FMT_LU "\n", delta);
     }
-    
+
     if (okay)     {
 
         if (CLIENT_VERBOSE1) {
@@ -646,13 +669,13 @@ disas_decode_binary(xed_disas_info_t* di,
         }
         if (CLIENT_VERBOSE) {
             char buf[XED_TMP_BUF_LEN];
-            if (xed_decoded_inst_valid(xedd)) 
+            if (xed_decoded_inst_valid(xedd))
             {
                 printf( "ICLASS:     %s\n"
                         "CATEGORY:   %s\n"
                         "EXTENSION:  %s\n"
                         "IFORM:      %s\n"
-                        "ISA_SET:    %s\n", 
+                        "ISA_SET:    %s\n",
                         xed_iclass_enum_t2str(xed_decoded_inst_get_iclass(xedd)),
                         xed_category_enum_t2str(xed_decoded_inst_get_category(xedd)),
                         xed_extension_enum_t2str(xed_decoded_inst_get_extension(xedd)),
@@ -678,20 +701,20 @@ xed_uint_t
 disas_decode_encode_binary(xed_disas_info_t* di,
                            const xed_uint8_t* decode_text_binary,
                            const unsigned int bytes,
-                           xed_decoded_inst_t* xedd, 
+                           xed_decoded_inst_t* xedd,
                            xed_uint64_t runtime_address)
 {
     // decode then encode one instruction
     unsigned int retval_olen = 0;
     xed_uint64_t dt1, dt2;
     xed_bool_t decode_okay;
-    
+
     // decode it...
     dt1 = xed_get_time();
     decode_okay =  disas_decode_binary(di,
                                        decode_text_binary,
                                        bytes,
-                                       xedd, 
+                                       xedd,
                                        runtime_address);
     dt2=xed_get_time();
     xed_stats_update(&xed_dec_stats, dt1, dt2);
@@ -702,11 +725,11 @@ disas_decode_encode_binary(xed_disas_info_t* di,
         unsigned int enc_olen, ilen = XED_MAX_INSTRUCTION_BYTES;
         xed_uint8_t array[XED_MAX_INSTRUCTION_BYTES];
         // they are basically the same now
-        xed_encoder_request_t* enc_req = xedd; 
+        xed_encoder_request_t* enc_req = xedd;
         // convert decode structure to proper encode structure
         xed_encoder_request_init_from_decode(xedd);
         xed3_operand_set_encode_force(enc_req, di->encode_force);
-        
+
         // encode it again...
         et1 = xed_get_time();
         encode_okay =  xed_encode(enc_req, array, ilen, &enc_olen);
@@ -732,7 +755,7 @@ disas_decode_encode_binary(xed_disas_info_t* di,
             // See if it matched the original...
             if (CLIENT_VERBOSE) {
                 char buf[XED_HEX_BUFLEN];
-                xed_uint_t dec_length; 
+                xed_uint_t dec_length;
                 xed_print_hex_line(buf,array, enc_olen, XED_HEX_BUFLEN);
                 printf("Encodable! %s\n",buf);
                 dec_length = xed_decoded_inst_get_length(xedd);
@@ -740,9 +763,9 @@ disas_decode_encode_binary(xed_disas_info_t* di,
                      memcmp(decode_text_binary, array, enc_olen)  )) {
                     char buf2[XED_TMP_BUF_LEN];
                     char buf3[XED_TMP_BUF_LEN];
-                    printf("Discrepenacy after re-encoding. dec_len= " 
+                    printf("Discrepenacy after re-encoding. dec_len= "
                            XED_FMT_U " ", dec_length);
-                    xed_print_hex_line(buf, decode_text_binary, 
+                    xed_print_hex_line(buf, decode_text_binary,
                                        dec_length,XED_HEX_BUFLEN);
                     printf("[%s] ", buf);
                     printf("enc_olen= " XED_FMT_U "", enc_olen);
@@ -755,7 +778,7 @@ disas_decode_encode_binary(xed_disas_info_t* di,
                     xed_encode_request_print(enc_req, buf2, XED_TMP_BUF_LEN);
                     printf("%s\n", buf2);
                 }
-                else 
+                else
                     printf("Identical re-encoding\n");
             }
         }
@@ -765,13 +788,13 @@ disas_decode_encode_binary(xed_disas_info_t* di,
 #endif
 ///////////////////////////////////////////////////////////////////////////
 #if defined(XED_DECODER) && defined(XED_AVX)
-typedef enum { XED_AST_INPUT_NOTHING, 
-               XED_AST_INPUT_SSE, 
+typedef enum { XED_AST_INPUT_NOTHING,
+               XED_AST_INPUT_SSE,
                XED_AST_INPUT_AVX_SCALAR,
-               XED_AST_INPUT_AVX128, 
-               XED_AST_INPUT_AVX256, 
-               XED_AST_INPUT_VZEROALL, 
-               XED_AST_INPUT_VZEROUPPER, 
+               XED_AST_INPUT_AVX128,
+               XED_AST_INPUT_AVX256,
+               XED_AST_INPUT_VZEROALL,
+               XED_AST_INPUT_VZEROUPPER,
                XED_AST_INPUT_XRSTOR,
                XED_AST_INPUT_EVEX_SCALAR,
                XED_AST_INPUT_EVEX128,
@@ -816,11 +839,11 @@ static XED_INLINE xed_ast_input_enum_t avx_type(xed_decoded_inst_t* xedd) {
 #else
     xed_uint32_t avx512 = 0;
 #endif
-    
+
     // scalar ops are implicitly 128b
-    if (xed_decoded_inst_get_attribute(xedd, XED_ATTRIBUTE_SIMD_SCALAR)) 
+    if (xed_decoded_inst_get_attribute(xedd, XED_ATTRIBUTE_SIMD_SCALAR))
         return avx512 ? XED_AST_INPUT_EVEX_SCALAR : XED_AST_INPUT_AVX_SCALAR;
-    
+
     // look at the VEX.VL field
     vl = xed3_operand_get_vl(xedd);
     switch(vl) {
@@ -849,7 +872,7 @@ static int is_sse(xed_decoded_inst_t* xedd) {
     }
     else if (extension == XED_EXTENSION_AES ||
              extension == XED_EXTENSION_PCLMULQDQ
-#if defined(XED_SUPPORTS_SHA) 
+#if defined(XED_SUPPORTS_SHA)
              || extension == XED_EXTENSION_SHA
 #endif
     )
@@ -893,8 +916,8 @@ static int
 all_zeros(xed_uint8_t* p, unsigned int len)
 {
     unsigned int i;
-    for( i=0;i<len;i++) 
-        if (p[i]) 
+    for( i=0;i<len;i++)
+        if (p[i])
             return 0;
     return 1;
 }
@@ -904,7 +927,7 @@ emit_pad(xed_uint32_t dec_len)
 {
     // pad out the instruction bytes
     unsigned int sp;
-    for ( sp=dec_len; sp < 12; sp++) 
+    for ( sp=dec_len; sp < 12; sp++)
         printf("  ");
     printf(" ");
 }
@@ -914,10 +937,10 @@ emit_sym(xed_disas_info_t*di,
          xed_uint64_t runtime_instruction_address)
 {
     if (di->symfn) {
-        char* name = (*di->symfn)(runtime_instruction_address, 
+        char* name = (*di->symfn)(runtime_instruction_address,
                                   di->caller_symbol_data);
         if (name) {
-            if (di->xml_format) 
+            if (di->xml_format)
                 printf("\n<SYM>%s</SYM>\n", name);
             else
                 printf("\nSYM %s:\n", name);
@@ -931,7 +954,7 @@ emit_hex(xed_decoded_inst_t* xedd, unsigned char* z)
     unsigned int dec_len;
     char buffer[XED_HEX_BUFLEN];
     dec_len = xed_decoded_inst_get_length(xedd);
-    xed_print_hex_line(buffer, (xed_uint8_t*) z, 
+    xed_print_hex_line(buffer, (xed_uint8_t*) z,
                        dec_len, XED_HEX_BUFLEN);
     printf("%s",buffer);
     emit_pad(dec_len);
@@ -947,7 +970,7 @@ emit_cat_ext(xed_decoded_inst_t* xedd,
     printf("%-10s ",
            xed_extension_enum_t2str(
                xed_decoded_inst_get_extension(xedd)));
-    
+
     if (di->emit_isa_set)
         printf("%-10s ",
                xed_isa_set_enum_t2str(
@@ -1027,23 +1050,23 @@ emit_xml(xed_decoded_inst_t* xedd,
     char buffer[XED_TMP_BUF_LEN];
     unsigned int dec_len;
 
-    printf("<ASMLINE>\n"); 
-    printf("  <ADDR>" XED_FMT_LX "</ADDR>\n", 
+    printf("<ASMLINE>\n");
+    printf("  <ADDR>" XED_FMT_LX "</ADDR>\n",
            runtime_instruction_address);
-    printf("  <CATEGORY>%s</CATEGORY>\n", 
+    printf("  <CATEGORY>%s</CATEGORY>\n",
            xed_category_enum_t2str( xed_decoded_inst_get_category(xedd)));
     printf("  <EXTENSION>%s</EXTENSION>\n",
            xed_extension_enum_t2str(xed_decoded_inst_get_extension(xedd)));
     printf("  <ITEXT>");
     dec_len = xed_decoded_inst_get_length(xedd);
-    xed_print_hex_line(buffer, (xed_uint8_t*) z, 
+    xed_print_hex_line(buffer, (xed_uint8_t*) z,
                        dec_len, XED_TMP_BUF_LEN);
     printf("%s</ITEXT>\n",buffer);
-    disassemble(di, buffer,XED_TMP_BUF_LEN, 
-                xedd, runtime_instruction_address, 
+    disassemble(di, buffer,XED_TMP_BUF_LEN,
+                xedd, runtime_instruction_address,
                 di->caller_symbol_data);
     printf( "  %s\n",buffer);
-    printf("</ASMLINE>\n"); 
+    printf("</ASMLINE>\n");
 }
 
 
@@ -1054,7 +1077,7 @@ emit_disasm(xed_disas_info_t* di,
             unsigned char* z,
             xed_dot_graph_supp_t* gs,
             xed_error_enum_t xed_error)
-{ 
+{
     if (CLIENT_VERBOSE1) {
         char tbuf[XED_TMP_BUF_LEN];
         xed_decoded_inst_dump(xedd,tbuf, XED_TMP_BUF_LEN);
@@ -1062,7 +1085,7 @@ emit_disasm(xed_disas_info_t* di,
     }
     if (CLIENT_VERBOSE)  {
         emit_sym(di, runtime_instruction_address);
-        if (di->xml_format) 
+        if (di->xml_format)
             emit_xml(xedd, runtime_instruction_address, z, di);
         else
         {
@@ -1070,14 +1093,14 @@ emit_disasm(xed_disas_info_t* di,
             char const* fmt = "XDIS " XED_FMT_LX ": ";
             if (di->format_options.lowercase_hex==0)
                 fmt = "XDIS " XED_FMT_LX_UPPER ": ";
-                              
+
             printf(fmt, runtime_instruction_address);
             emit_cat_ext_ast(xedd,di);
             emit_hex(xedd, z);
             disassemble(di,
                         buffer,XED_TMP_BUF_LEN,
-                        xedd, 
-                        runtime_instruction_address, 
+                        xedd,
+                        runtime_instruction_address,
                         di->caller_symbol_data);
             printf( "%s",buffer);
             if (gs) {
@@ -1088,14 +1111,14 @@ emit_disasm(xed_disas_info_t* di,
                     di->caller_symbol_data,
                     registered_disasm_callback);
             }
-            
+
             if (xed_error == XED_ERROR_INVALID_FOR_CHIP) {
                 di->errors_chip_check++;
                 printf(" # INVALID-FOR-CHIP");
             }
             emit_line_num(di, xed_error,
                           runtime_instruction_address);
-            
+
             printf( "\n");
         }
     }
@@ -1109,9 +1132,9 @@ check_resync(xed_disas_info_t* di,
     if (di->resync && di->symfn)
     {
         unsigned int x;
-        for ( x=1 ; x<length ; x++ ) 
+        for ( x=1 ; x<length ; x++ )
         {
-            char* name = (*di->symfn)(runtime_instruction_address+x, 
+            char* name = (*di->symfn)(runtime_instruction_address+x,
                                       di->caller_symbol_data);
             if (name)
             {
@@ -1127,7 +1150,7 @@ check_resync(xed_disas_info_t* di,
     }
     return 0;
 }
-    
+
 static void XED_NORETURN
 die_zero_len(
     xed_uint64_t runtime_instruction_address,
@@ -1136,7 +1159,7 @@ die_zero_len(
     xed_error_enum_t xed_error)
 {
     printf("Zero length on decoded instruction!\n");
-    xed_decode_error( runtime_instruction_address, 
+    xed_decode_error( runtime_instruction_address,
                       U64CAST(z-di->a), z, xed_error, 15);
     xedex_derror("Dying");
 }
@@ -1144,7 +1167,7 @@ die_zero_len(
 void xed_disas_test(xed_disas_info_t* di)
 {
     // this decodes are region defined by the input structure.
-    
+
     static int first = 1;
     xed_uint64_t errors = 0;
     unsigned int m;
@@ -1173,8 +1196,8 @@ void xed_disas_test(xed_disas_info_t* di)
 
     m = di->ninst; // number of things to decode
     z = di->a;   // set to start of region
-  
-    if (di->runtime_vaddr_disas_start) 
+
+    if (di->runtime_vaddr_disas_start)
         if (di->runtime_vaddr_disas_start > di->runtime_vaddr)
             z = (di->runtime_vaddr_disas_start - di->runtime_vaddr) +
                 di->a;
@@ -1186,7 +1209,7 @@ void xed_disas_test(xed_disas_info_t* di)
                      di->a;
         else  /* end address is before start of this region -- skip it */
             goto finish;
-    } 
+    }
 
     if (z >= di->q)   /* start pointer  is after end of section */
         goto finish;
@@ -1194,7 +1217,7 @@ void xed_disas_test(xed_disas_info_t* di)
     // for skipping long strings of zeros
     skipping = 0;
     last_all_zeros = 0;
-    for( i=0; i<m;i++) 
+    for( i=0; i<m;i++)
     {
         xed_uint_t ilim;
         if (zlimit && z >= zlimit) {
@@ -1204,29 +1227,31 @@ void xed_disas_test(xed_disas_info_t* di)
         }
         if (z >= di->q) {
             if (di->xml_format == 0)
+#ifndef PYTHON
                 printf("# end of text section.\n");
+#endif
             break;
         }
 
         /* if we get near the end of the section, clip the itext length */
         ilim = 15;
-        // we know z < di->q due to above if() statement. 
-        if (z + ilim > di->q) { 
+        // we know z < di->q due to above if() statement.
+        if (z + ilim > di->q) {
             // pointer diff is signed, but in this case guaranteed positive and <= ilim.
             ilim = UCAST(di->q - z);
         }
 
-        if (CLIENT_VERBOSE3) 
+        if (CLIENT_VERBOSE3)
             emit_dec_sep_msg(i);
-    
+
         // if we get two full things of 0's in a row, start skipping.
-        if (all_zeros((xed_uint8_t*) z, ilim)) 
+        if (all_zeros((xed_uint8_t*) z, ilim))
         {
             if (skipping) {
                 z = z + ilim;
                 continue;
             }
-            else if (last_all_zeros) { 
+            else if (last_all_zeros) {
                 printf("...\n");
                 z = z + ilim;
                 skipping = 1;
@@ -1241,17 +1266,17 @@ void xed_disas_test(xed_disas_info_t* di)
             last_all_zeros = 0;
         }
 
-        runtime_instruction_address =  U64CAST(z-di->a) + 
+        runtime_instruction_address =  U64CAST(z-di->a) +
                                        di->runtime_vaddr;
-         
-        if (CLIENT_VERBOSE3) 
+
+        if (CLIENT_VERBOSE3)
             emit_addr_hex(runtime_instruction_address, z, ilim);
 
         okay = 0;
         length = 0;
 
-        init_xedd(&xedd, di); 
-        
+        init_xedd(&xedd, di);
+
         if ( di->decode_only )
         {
             xed_uint64_t t1,t2;
@@ -1261,10 +1286,10 @@ void xed_disas_test(xed_disas_info_t* di)
 
             //do the decode
             xed_error = decode_internal(
-                &xedd, 
+                &xedd,
                 XED_REINTERPRET_CAST(const xed_uint8_t*,z),
                 ilim);
-            
+
             t2 = xed_get_time();
 
             okay = (xed_error == XED_ERROR_NONE);
@@ -1275,11 +1300,11 @@ void xed_disas_test(xed_disas_info_t* di)
                              ilim,
                              runtime_instruction_address);
 #endif
-            
+
             xed_stats_update(&xed_dec_stats, t1, t2);
             length = xed_decoded_inst_get_length(&xedd);
 
-            if (okay && length == 0) 
+            if (okay && length == 0)
                 die_zero_len(runtime_instruction_address, z, di, xed_error);
 
             resync = check_resync(di, runtime_instruction_address, length, z);
@@ -1300,10 +1325,13 @@ void xed_disas_test(xed_disas_info_t* di)
                 emit_disasm(di, &xedd,
                             runtime_instruction_address,
                             z, gs, xed_error);
-                if (CLIENT_VERBOSE && gs) 
+                if (CLIENT_VERBOSE && gs)
                     graph_empty = 0;
+#ifdef PYTHON
+                add_instr_to_pyList(di, &xedd, runtime_instruction_address, z);
+#endif
             }
-            
+
             if (okay == 0)
             {
                 errors++;
@@ -1313,10 +1341,10 @@ void xed_disas_test(xed_disas_info_t* di)
 
                 xed_decode_error( runtime_instruction_address,
                                   U64CAST(z-di->a),
-                                  z, 
+                                  z,
                                   xed_error,
                                   length);
-                
+
             }  // okay == 0
         } // decode_only
 
@@ -1327,7 +1355,7 @@ void xed_disas_test(xed_disas_info_t* di)
             olen  = disas_decode_encode_binary(di,
                                                XED_REINTERPRET_CAST(const xed_uint8_t*,z),
                                                ilim,
-                                               &xedd, 
+                                               &xedd,
                                                runtime_instruction_address);
 
             okay = (olen != 0);
@@ -1337,7 +1365,7 @@ void xed_disas_test(xed_disas_info_t* di)
                        U64CAST(z-di->a));
                 // just give a length of 1B to see if we can restart decode...
                 length = 1;
-            }        
+            }
             else {
                 length = xed_decoded_inst_get_length(&xedd);
                 xed_dec_stats.total_ilen += length;
@@ -1347,25 +1375,27 @@ void xed_disas_test(xed_disas_info_t* di)
                 else
                     xed_dec_stats.total_longer += (olen - length);
             }
-        }        
+        }
 #    endif  // XED_ENCODER & XED_DECODER
-#endif //!defined(XED_ILD_ONLY) 
-        
-        
+#endif //!defined(XED_ILD_ONLY)
+
+
         z = z + length;
     } //for i
-   
+
     if (di->xml_format == 0) {
+#ifndef PYTHON
         printf( "# Errors: " XED_FMT_LU "\n", errors);
+#endif
     }
 finish:
 
     if (gs) {
-        if (graph_empty ==0 ) 
+        if (graph_empty ==0 )
             xed_dot_graph_dump(di->dot_graph_output, gs);
         xed_dot_graph_supp_deallocate(gs);
     }
-    
+
     di->errors += errors;
 }
 #endif
@@ -1414,7 +1444,7 @@ xed_uint8_t convert_ascii_nibbles(char c1, char c2) {
 }
 
 unsigned int
-xed_convert_ascii_to_hex(const char* src, xed_uint8_t* dst, 
+xed_convert_ascii_to_hex(const char* src, xed_uint8_t* dst,
                          unsigned int max_bytes)
 {
     unsigned int j;
@@ -1422,17 +1452,17 @@ xed_convert_ascii_to_hex(const char* src, xed_uint8_t* dst,
     unsigned int i = 0;
 
     const unsigned int len = XED_STATIC_CAST(unsigned int,strlen(src));
-    if ((len & 1) != 0) 
+    if ((len & 1) != 0)
         xedex_derror("test string was not an even number of nibbles");
-    
-    if (len > (max_bytes * 2) ) 
+
+    if (len > (max_bytes * 2) )
         xedex_derror("test string was too long");
 
-    for( j=0;j<max_bytes;j++) 
+    for( j=0;j<max_bytes;j++)
         dst[j] = 0;
 
     for(;i<len/2;i++) {
-        if (CLIENT_VERBOSE3) 
+        if (CLIENT_VERBOSE3)
             printf("Converting %c & %c\n", src[p], src[p+1]);
         dst[i] = convert_ascii_nibbles(src[p], src[p+1]);
         p=p+2;
@@ -1447,7 +1477,7 @@ convert_base10(const char* buf)
     xed_int64_t v = 0;
     xed_int64_t sign = 1;
     int len = XED_STATIC_CAST(int,strlen(buf));
-    int i; 
+    int i;
     for(i=0;i<len;i++)
     {
         char c = buf[i];
@@ -1461,7 +1491,7 @@ convert_base10(const char* buf)
             v = v*10 + digit;
         }
         else if (c == '_') /* skip underscores */
-            continue; 
+            continue;
         else
         {
             break;
@@ -1515,7 +1545,7 @@ xed_internal_strtoll(const char* buf, int base)
     switch(base)
     {
       case 0:
-        if (strlen(buf) > 2 && buf[0] == '0' && 
+        if (strlen(buf) > 2 && buf[0] == '0' &&
             (buf[1] == 'x' || buf[1] == 'X'))
         {
             return convert_base16(buf);
@@ -1573,7 +1603,7 @@ char const* xedex_append_string(char const* p, // p is free()'d
         while(*t)
             *n++ = *t++;
     }
-    
+
     t = x;
     while(*t)
         *n++ = *t++;
@@ -1617,13 +1647,13 @@ xed_str_list_t* xed_tokenize(char const* const p, char const* const sep)
     // one were to free the list, one would have to just free the first
     // token.  The strsep() puts nulls in to a copy of the input string p
     // replacing the delimiters.
-    
+
     xed_str_list_t* head=0;
     xed_str_list_t* last=0;
     xed_str_list_t* cur=0;
     char* token=0;
     char* tmp_string=0;
-    
+
     tmp_string = xed_strdup(p);
     // puts a null in string at token and returns pointer to first token,
     // updates tmp_string to point after null.
@@ -1635,7 +1665,7 @@ xed_str_list_t* xed_tokenize(char const* const p, char const* const sep)
         if (token[0]) // we know token is non-null
         {
             cur = alloc_str_node();
-            if (!head)  
+            if (!head)
                 head = cur;
             cur->next = 0;
             cur->s = token;
@@ -1670,6 +1700,348 @@ void xed_print_bytes_pseudo_op(const xed_uint8_t* array, unsigned int olen) {
 
 void xed_print_intel_asm_emit(const xed_uint8_t* array, unsigned int olen) {
     unsigned int i;
-    for(i=0;i<olen;i++) 
+    for(i=0;i<olen;i++)
         printf("     __emit 0x%02x\n",(xed_uint32_t)(array[i]));
 }
+
+////////////////////////////////////////////////////////////////////////////
+
+#ifdef PYTHON
+
+static void init_decode_info(xed_disas_info_t* decode_info) {
+    xed_state_t dstate;
+    dstate.mmode = XED_MACHINE_MODE_LONG_64;
+
+    xed_format_options_t format_options;
+    memset(&format_options, 0, sizeof(xed_format_options_t));
+    format_options.write_mask_curly_k0 = 1;
+    format_options.lowercase_hex = 1;
+    xed_format_set_options(format_options);
+
+    xed_disas_info_init(decode_info);
+    decode_info->dstate = dstate;
+    decode_info->format_options = format_options;
+    decode_info->ninst = 100*1000*1000;
+    decode_info->decode_only = 1;
+    decode_info->sixty_four_bit = 1;
+    decode_info->pyList = PyList_New(0);
+}
+
+static xed_chip_enum_t parse_chip(const char* chip_str) {
+    xed_chip_enum_t xed_chip = XED_CHIP_INVALID;
+    if (chip_str) {
+        xed_chip = str2xed_chip_enum_t(chip_str);
+        if (xed_chip == XED_CHIP_INVALID) {
+            fprintf(stderr, "Invalid chip name specified.\n");
+        }
+    }
+    return xed_chip;
+}
+
+static PyObject* disasHex(PyObject* self, PyObject *args, PyObject *kwargs) {
+    char* hex;
+    char* chip_str = NULL;
+    int use_IACA_markers = 0;
+    static char* kwlist[] = {"hex", "chip", "useIACAMarkers", NULL};
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "s|sp", kwlist, &hex, &chip_str, &use_IACA_markers)) {
+      return NULL;
+    }
+
+    xed_uint8_t* region = malloc((strlen(hex)/2) * sizeof(xed_uint8_t));
+    xed_convert_ascii_to_hex(hex, region, strlen(hex) / 2);
+
+    xed_disas_info_t decode_info;
+    init_decode_info(&decode_info);
+    decode_info.chip = parse_chip(chip_str);
+    decode_info.use_IACA_markers = use_IACA_markers;
+    decode_info.s = (unsigned char*)region;
+    decode_info.a = (unsigned char*)region;
+    decode_info.q = (unsigned char*)(region) + strlen(hex) / 2; // end of region
+
+    xed_disas_test(&decode_info);
+    free(region);
+    return decode_info.pyList;
+}
+
+static PyObject* disasFile(PyObject* self, PyObject *args, PyObject *kwargs) {
+    char* file_name;
+    char* chip_str = NULL;
+    int raw = 0;
+    int use_IACA_markers = 0;
+    static char* kwlist[] = {"file_name", "chip", "raw", "useIACAMarkers", NULL};
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "s|spp", kwlist, &file_name, &chip_str, &raw, &use_IACA_markers)) {
+      return NULL;
+    }
+
+    xed_disas_info_t decode_info;
+    init_decode_info(&decode_info);
+    decode_info.chip = parse_chip(chip_str);
+    decode_info.use_IACA_markers = use_IACA_markers;
+    decode_info.input_file_name = file_name;
+
+    if (raw) {
+        xed_disas_raw(&decode_info);
+    } else {
+#if defined(__APPLE__)
+        xed_disas_macho(&decode_info);
+#elif defined(XED_ELF_READER)
+        xed_disas_elf(&decode_info);
+#elif defined(_WIN32)
+        xed_disas_pecoff(&decode_info);
+#else
+        xedex_derror("No PECOFF, ELF or MACHO support compiled in");
+#endif
+    }
+
+    return decode_info.pyList;
+}
+
+static int dict_str_values_differ(PyObject* dict1, PyObject* dict2, const char* key) {
+    PyObject* v1 = PyDict_GetItemString(dict1, key);
+    PyObject* v2 = PyDict_GetItemString(dict2, key);
+    return v1 && v2 && PyUnicode_Compare(v1, v2);
+}
+
+static PyObject* matchXMLAttributes(PyObject* self, PyObject *args) {
+    PyObject* disasDict;
+    PyObject* xmlDict;
+    if (!PyArg_ParseTuple(args, "O!O!", &PyDict_Type, &disasDict, &PyDict_Type, &xmlDict)) {
+        return NULL;
+    }
+
+    if (dict_str_values_differ(disasDict, xmlDict, "agen")
+            || dict_str_values_differ(disasDict, xmlDict, "bcast")
+            || dict_str_values_differ(disasDict, xmlDict, "eosz")
+            || dict_str_values_differ(disasDict, xmlDict, "high8")
+            || dict_str_values_differ(disasDict, xmlDict, "iform")
+            || dict_str_values_differ(disasDict, xmlDict, "immzero")
+            || dict_str_values_differ(disasDict, xmlDict, "mask")
+            || dict_str_values_differ(disasDict, xmlDict, "rep")
+            || dict_str_values_differ(disasDict, xmlDict, "sae")
+            || dict_str_values_differ(disasDict, xmlDict, "zeroing")) {
+        Py_RETURN_FALSE;
+    }
+
+    PyObject* disasRm = PyDict_GetItemString(disasDict, "rm");
+    PyObject* xmlRm = PyDict_GetItemString(xmlDict, "rm");
+
+    if (disasRm && xmlRm && !PyUnicode_Contains(xmlRm, disasRm)) {
+        Py_RETURN_FALSE;
+    }
+
+    Py_RETURN_TRUE;
+}
+
+static PyMethodDef xed_funcs[] = {
+   {"disasHex", (PyCFunction)disasHex, METH_VARARGS | METH_KEYWORDS, ""},
+   {"disasFile", (PyCFunction)disasFile, METH_VARARGS | METH_KEYWORDS, ""},
+   {"matchXMLAttributes", (PyCFunction)matchXMLAttributes, METH_VARARGS, ""},
+   {NULL}
+};
+
+static struct PyModuleDef cModXed = {PyModuleDef_HEAD_INIT, "xed", "", -1, xed_funcs};
+
+PyMODINIT_FUNC PyInit_xed(void) {
+    xed_tables_init();
+    xed_example_utils_init();
+    xed_set_verbosity(0);
+    return PyModule_Create(&cModXed);
+}
+
+static void add_str_entry(PyObject* pyDict, const char* key, const char* val) {
+    PyObject* tmp = PyUnicode_FromString(val);
+    PyDict_SetItemString(pyDict, key, tmp);
+    Py_DECREF(tmp);
+}
+
+static void add_char_entry(PyObject* pyDict, const char* key, const char val) {
+    PyObject* tmp = Py_BuildValue("C", val);
+    PyDict_SetItemString(pyDict, key, tmp);
+    Py_DECREF(tmp);
+}
+
+static void add_longlong_entry(PyObject* pyDict, const char* key, const long long val) {
+    PyObject* tmp = Py_BuildValue("L", val);
+    PyDict_SetItemString(pyDict, key, tmp);
+    Py_DECREF(tmp);
+}
+
+static void add_uint_as_str_entry(PyObject* pyDict, const char* key, const unsigned int val) {
+    PyObject* tmp = PyUnicode_FromFormat("%u", val);
+    PyDict_SetItemString(pyDict, key, tmp);
+    Py_DECREF(tmp);
+}
+
+static void add_instr_to_pyList(xed_disas_info_t* di, xed_decoded_inst_t* xedd, xed_uint64_t runtime_instruction_address, unsigned char* z) {
+    char opcode[XED_HEX_BUFLEN];
+    xed_print_hex_line(opcode, (xed_uint8_t*)z, xed_decoded_inst_get_length(xedd), XED_HEX_BUFLEN);
+
+    if (di->use_IACA_markers) {
+        if (di->IACA_end_marker_found) {
+            return;
+        }
+
+        int prev_opcode_BB6F000000 = di->prev_opcode_BB6F000000;
+        int prev_opcode_BBDE000000 = di->prev_opcode_BBDE000000;
+        di->prev_opcode_BB6F000000 = !strcmp(opcode, "BB6F000000");
+        di->prev_opcode_BBDE000000 = !strcmp(opcode, "BBDE000000");
+
+        if (di->IACA_start_marker_found) {
+            if (!strcmp(opcode, "646790") && prev_opcode_BBDE000000) {
+                di->IACA_end_marker_found = 1;
+                PyObject_CallMethod(di->pyList, "pop", "n", Py_SIZE(di->pyList)-1);
+                return;
+            } else if (!strcmp(opcode, "65C60425DE000000DE")) {
+                di->IACA_end_marker_found = 1;
+                return;
+            }
+        } else {
+            if ((!strcmp(opcode, "646790") && prev_opcode_BB6F000000) || !strcmp(opcode, "65C604256F0000006F")) {
+                di->IACA_start_marker_found = 1;
+            }
+            return;
+        }
+    }
+
+    PyObject* pyDict = PyDict_New();
+
+    add_str_entry(pyDict, "opcode", opcode);
+    add_longlong_entry(pyDict, "pos_nominal_opcode", xed3_operand_get_pos_nominal_opcode(xedd));
+    add_longlong_entry(pyDict, "addr", runtime_instruction_address);
+    add_str_entry(pyDict, "iclass", xed_iclass_enum_t2str(xed_decoded_inst_get_iclass(xedd)));
+    add_str_entry(pyDict, "iform", xed_iform_enum_t2str(xed_decoded_inst_get_iform_enum(xedd)));
+    add_str_entry(pyDict, "category", xed_category_enum_t2str(xed_decoded_inst_get_category(xedd)));
+    add_str_entry(pyDict, "extension", xed_extension_enum_t2str(xed_decoded_inst_get_extension(xedd)));
+    add_str_entry(pyDict, "isa-set", xed_isa_set_enum_t2str(xed_decoded_inst_get_isa_set(xedd)));
+    add_str_entry(pyDict, "ast", xed_ast_input_enum_t2str(classify_avx_sse(xedd)));
+
+    char buffer[XED_TMP_BUF_LEN];
+    disassemble(di, buffer, XED_TMP_BUF_LEN, xedd, 0, di->caller_symbol_data);
+    add_str_entry(pyDict, "asm", buffer);
+
+    add_uint_as_str_entry(pyDict, "bcast", xed3_operand_get_bcast(xedd));
+    add_uint_as_str_entry(pyDict, "eosz", xed3_operand_get_eosz(xedd));
+    add_uint_as_str_entry(pyDict, "mask", xed3_operand_get_mask(xedd) ? 1 : 0);
+
+    add_uint_as_str_entry(pyDict, "prefix66", xed_operand_values_has_66_prefix(xedd));
+    add_uint_as_str_entry(pyDict, "rep", xed3_operand_get_rep(xedd));
+    add_uint_as_str_entry(pyDict, "rm", xed3_operand_get_rm(xedd));
+    add_uint_as_str_entry(pyDict, "sae", xed3_operand_get_sae(xedd));
+    add_uint_as_str_entry(pyDict, "zeroing", xed3_operand_get_zeroing(xedd));
+
+    buffer[0] = '\0';
+    if (xed3_operand_get_agen(xedd)) {
+        int blen = XED_TMP_BUF_LEN;
+        xed_reg_enum_t base = xed3_operand_get_base0(xedd);
+        if (base) {
+            if (base == XED_REG_RIP) {
+                blen = xed_strncat(buffer, "R", blen);
+            } else {
+                blen = xed_strncat(buffer, "B", blen);
+            }
+        }
+        if (xed3_operand_get_index(xedd)) {
+            if (blen < XED_TMP_BUF_LEN) {
+                blen = xed_strncat(buffer, "_", blen);
+            }
+            blen = xed_strncat(buffer, "I", blen);
+            if (xed3_operand_get_scale(xedd) != 1) {
+                blen = xed_strncat(buffer, "S", blen);
+            }
+        }
+        if (xed_operand_values_has_memory_displacement(xedd)) {
+            if (blen < XED_TMP_BUF_LEN) {
+                blen = xed_strncat(buffer, "_", blen);
+            }
+            blen = xed_strncat(buffer, "D", blen);
+            blen = xed_itoa(buffer + xed_strlen(buffer), xed_operand_values_get_memory_displacement_length_bits(xedd), blen);
+        }
+    }
+    add_str_entry(pyDict, "agen", buffer);
+
+    PyObject* regDict = PyDict_New();
+    buffer[0] = '\0';
+    int blen = XED_TMP_BUF_LEN;
+    for (int i=0; i<=9; i++) {
+        xed_reg_enum_t reg;
+        xed3_get_generic_operand(xedd, XED_OPERAND_REG0+i, &reg);
+        if (reg) {
+            const char* op_name = xed_operand_enum_t2str(XED_OPERAND_REG0+i);
+            const char* reg_name = xed_reg_enum_t2str(reg);
+            add_str_entry(regDict, op_name, reg_name);
+            if (reg == XED_REG_AH || reg == XED_REG_BH || reg == XED_REG_CH || reg == XED_REG_DH) {
+                if (blen < XED_TMP_BUF_LEN) {
+                    blen = xed_strncat(buffer, ",", blen);
+                }
+                blen = xed_strncat(buffer, op_name, blen);
+            }
+        }
+    }
+    add_str_entry(pyDict, "high8", buffer);
+    PyDict_SetItemString(pyDict, "regOperands", regDict);
+    Py_DECREF(regDict);
+
+    char immzero = '0';
+    if (xed3_operand_get_imm0(xedd)) {
+        xed_int64_t imm = xed_operand_values_get_immediate_int64(xedd);
+        add_longlong_entry(pyDict, "IMM0", imm);
+        add_longlong_entry(pyDict, "IMM_WIDTH", xed3_operand_get_imm_width(xedd));
+        if (imm == 0) {
+            immzero = '1';
+        }
+    }
+    add_char_entry(pyDict, "immzero", immzero);
+
+    if (xed3_operand_get_imm1(xedd)) { // The ENTER instruction
+        add_longlong_entry(pyDict, "IMM1", xed_operand_values_get_second_immediate(xedd));
+    }
+
+    PyObject* memDict = PyDict_New();
+    if (xed3_operand_get_mem0(xedd) || xed3_operand_get_agen(xedd)) {
+        const char* op_name = xed_operand_enum_t2str(xed3_operand_get_mem0(xedd) ? XED_OPERAND_MEM0 : XED_OPERAND_AGEN);
+        xed_reg_enum_t base = xed3_operand_get_base0(xedd);
+        xed_reg_enum_t index = xed3_operand_get_index(xedd);
+        xed_int64_t disp = xed_operand_values_get_memory_displacement_int64(xedd);
+        xed_bits_t scale = XED_MAX(1, xed3_operand_get_scale(xedd));
+
+        PyObject* memAddrDict = PyDict_New();
+        if (base) {
+            add_str_entry(memAddrDict, "base", xed_reg_enum_t2str(base));
+        }
+        if (index) {
+            add_str_entry(memAddrDict, "index", xed_reg_enum_t2str(index));
+        }
+        add_longlong_entry(memAddrDict, "scale", scale);
+        add_longlong_entry(memAddrDict, "disp", disp);
+        PyDict_SetItemString(memDict, op_name, memAddrDict);
+        Py_DECREF(memAddrDict);
+    }
+    if (xed3_operand_get_mem1(xedd)) {
+        const char* op_name = xed_operand_enum_t2str(XED_OPERAND_MEM1);
+        xed_reg_enum_t base = xed3_operand_get_base1(xedd);
+
+        PyObject* memAddrDict = PyDict_New();
+        if (base) {
+            add_str_entry(memAddrDict, "base", xed_reg_enum_t2str(base));
+        }
+        PyDict_SetItemString(memDict, op_name, memAddrDict);
+        Py_DECREF(memAddrDict);
+    }
+    PyDict_SetItemString(pyDict, "memOperands", memDict);
+    Py_DECREF(memDict);
+
+    PyObject* rwDict = PyDict_New();
+    for(unsigned int i=0; i<xed_inst_noperands(xed_decoded_inst_inst(xedd)); i++) {
+        const xed_operand_t* op = xed_inst_operand(xed_decoded_inst_inst(xedd),i);
+        const char* op_name = xed_operand_enum_t2str(op->_name);
+        const char* op_rw = xed_operand_action_enum_t2str(op->_rw);
+        add_str_entry(rwDict, op_name, op_rw);
+    }
+    PyDict_SetItemString(pyDict, "rw", rwDict);
+    Py_DECREF(rwDict);
+
+    PyList_Append(di->pyList, pyDict);
+    Py_DECREF(pyDict);
+}
+
+#endif // PYTHON

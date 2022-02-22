@@ -1,4 +1,4 @@
-/*BEGIN_LEGAL 
+/*BEGIN_LEGAL
 
 Copyright (c) 2019 Intel Corporation
 
@@ -13,13 +13,17 @@ Copyright (c) 2019 Intel Corporation
   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
   See the License for the specific language governing permissions and
   limitations under the License.
-  
+
 END_LEGAL */
 /// @file xed-examples-util.h
 
 
 #ifndef XED_EXAMPLES_UTIL_H
 # define XED_EXAMPLES_UTIL_H
+
+#ifdef PYTHON
+# include <Python.h>
+#endif
 
 #include <stdio.h>
 #include "xed/xed-interface.h"
@@ -43,15 +47,15 @@ xed_int64_t xed_atoi_hex(char* buf);
 xed_uint64_t convert_ascii_hex_to_int(const char* s);
 
 
-unsigned int xed_convert_ascii_to_hex(const char* src, 
-                                      xed_uint8_t* dst, 
+unsigned int xed_convert_ascii_to_hex(const char* src,
+                                      xed_uint8_t* dst,
                                       unsigned int max_bytes);
 
 #define XED_HEX_BUFLEN 200
 void xed_print_hex_line(char* buf,
                         const xed_uint8_t* array,
-                        const unsigned int length, 
-                        const unsigned int buflen); 
+                        const unsigned int length,
+                        const unsigned int buflen);
 
 void XED_NORETURN xedex_derror(const char* s);
 void xedex_dwarn(const char* s);
@@ -69,7 +73,7 @@ typedef struct {
     char* input_file_name;
     char* symbol_search_path;     // for dbghelp symbol caches
     char* target_section;
-    xed_bool_t use_binary_mode; 
+    xed_bool_t use_binary_mode;
     xed_uint64_t addr_start;
     xed_uint64_t addr_end;
     xed_bool_t xml_format;
@@ -81,15 +85,15 @@ typedef struct {
     xed_bool_t ast;
     xed_bool_t histo;
     xed_chip_enum_t chip;
-    xed_bool_t emit_isa_set;    
+    xed_bool_t emit_isa_set;
     xed_format_options_t format_options;
     xed_operand_enum_t operand;
     xed_uint32_t operand_value;
     xed_bool_t encode_force;
-    
+
     xed_uint64_t errors;
     xed_uint64_t errors_chip_check;
-    
+
     unsigned char* s; // start of image
     unsigned char* a; // start of instructions to decode region
     unsigned char* q; // end of region
@@ -99,14 +103,22 @@ typedef struct {
     xed_uint64_t runtime_vaddr_disas_start;
 
     // where to stop in program space, if not zero
-    xed_uint64_t runtime_vaddr_disas_end; 
+    xed_uint64_t runtime_vaddr_disas_end;
 
     // a function to convert addresses to symbols
-    char* (*symfn)(xed_uint64_t, void*); 
+    char* (*symfn)(xed_uint64_t, void*);
     void* caller_symbol_data;
 
     void (*line_number_info_fn)(xed_uint64_t addr);
 
+#ifdef PYTHON
+    PyObject* pyList;
+    xed_bool_t use_IACA_markers;
+    xed_bool_t IACA_start_marker_found;
+    xed_bool_t IACA_end_marker_found;
+    xed_bool_t prev_opcode_BB6F000000;
+    xed_bool_t prev_opcode_BBDE000000;
+#endif
 } xed_disas_info_t;
 
 void xed_disas_info_init(xed_disas_info_t* p);

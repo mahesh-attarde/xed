@@ -1,4 +1,4 @@
-/*BEGIN_LEGAL 
+/*BEGIN_LEGAL
 
 Copyright (c) 2019 Intel Corporation
 
@@ -13,7 +13,7 @@ Copyright (c) 2019 Intel Corporation
   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
   See the License for the specific language governing permissions and
   limitations under the License.
-  
+
 END_LEGAL */
 /// @file xed-disas-pecoff.cpp
 
@@ -35,7 +35,7 @@ extern "C" {
 // xed headers -- THESE MUST BE AFTER THE WINDOWS HEADERS
 
 extern "C" {
-#include "xed-disas-pecoff.h" 
+#include "xed-disas-pecoff.h"
 
 // This really must be after the windows.h include
 #include "xed-symbol-table.h"
@@ -47,7 +47,7 @@ extern "C" {
 using namespace std;
 
 static void
-windows_error(const char* syscall, 
+windows_error(const char* syscall,
               const char* filename)
 {
   printf("Mapped file:: %s",syscall);
@@ -80,7 +80,7 @@ static fptr_t find_fn_ptr(const char* function_name)  {
    fptr_t p;
 
    p = (fptr_t) GetProcAddress(
-                   GetModuleHandle(TEXT("kernel32.dll")), 
+                   GetModuleHandle(TEXT("kernel32.dll")),
                    function_name);
    return p;
 }
@@ -118,7 +118,11 @@ public:
 
   pecoff_reader_t(int arg_verbose=1)
   {
+#ifdef PYTHON
+    verbose = 0;
+#else
     verbose = arg_verbose;
+#endif
     init();
   }
   ~pecoff_reader_t()
@@ -137,7 +141,7 @@ public:
     map_handle_ = INVALID_HANDLE_VALUE;
     okay_ = false;
     sixty_four_bit_ = false;
-    
+
     hdr=0;
     orig_hdr=0;
     nsections=0;
@@ -160,13 +164,13 @@ public:
       {
         CloseHandle(file_handle_);
       }
-        
+
     init();
   }
 
 
   xed_bool_t
-  map_region(const char* input_file_name, 
+  map_region(const char* input_file_name,
              void*& vregion,
              xed_uint32_t& len)
   {
@@ -177,7 +181,7 @@ public:
     void* old=0;
     fptr_t disable, revert;
     if (find_wow64_redir(&disable, &revert))
-        if ( (*disable)(&old) ) 
+        if ( (*disable)(&old) )
             disabled_redirection = true;
 #endif
 
@@ -222,7 +226,7 @@ public:
     }
     CloseHandle(map_handle_);
     map_handle_ = INVALID_HANDLE_VALUE;
-        
+
     CloseHandle(file_handle_);
     file_handle_ = INVALID_HANDLE_VALUE;
     return false;
@@ -276,7 +280,7 @@ public:
                   char c = p[i].N.ShortName[j];
                   if (c)
                       printf("%c", c);
-                  else 
+                  else
                       break;
               }
               printf("]");
@@ -288,7 +292,7 @@ public:
   }
 
 
-  void print_section_headers() { 
+  void print_section_headers() {
     const IMAGE_SECTION_HEADER* jhdr = orig_hdr;
     for (unsigned int j = 0; j < nsections; j++, jhdr++)   {
         printf("# SECNAME  %u",j);
@@ -299,14 +303,14 @@ public:
             xed_uint8_t* section_start;
             xed_uint32_t section_size;
             xed_uint64_t virtual_addr;
-            
+
             virtual_addr  = jhdr->VirtualAddress  + image_base;
-            section_size = (jhdr->Misc.VirtualSize > 0 ? 
+            section_size = (jhdr->Misc.VirtualSize > 0 ?
                             jhdr->Misc.VirtualSize
                             : jhdr->SizeOfRawData);
             section_start = (xed_uint8_t*)ptr_add(base_,
                                                   jhdr->PointerToRawData);
-            
+
             printf(" VAddr    " XED_FMT_LX16, virtual_addr);
             printf(" SecStart %p" , section_start);
             printf(" %016I64x" , (xed_uint64_t)jhdr->PointerToRawData);
@@ -326,7 +330,7 @@ public:
     unsigned int i,ii;
     char my_name[IMAGE_SIZEOF_SHORT_NAME];
     unsigned int match_len = 0;
-        
+
     // Extract the name into a 0-padded 8 byte string.
     if (secname) {
       memset(my_name,0,IMAGE_SIZEOF_SHORT_NAME);
@@ -344,9 +348,9 @@ public:
     // There are section names that LOOK like .text$x but they really have
     // a null string embedded in them. So when you strcmp, you hit the
     // null.
-    
 
-    for ( ii = section_index; ii < nsections; ii++, hdr++)   
+
+    for ( ii = section_index; ii < nsections; ii++, hdr++)
     {
       int found = 0;
       if (hdr->SizeOfRawData == 0)
@@ -355,22 +359,22 @@ public:
          section name that matches , just disasssemble whatever they
          want. */
       if (secname==0) {
-          if ((hdr->Characteristics & IMAGE_SCN_CNT_CODE) == 
-              IMAGE_SCN_CNT_CODE)  
+          if ((hdr->Characteristics & IMAGE_SCN_CNT_CODE) ==
+              IMAGE_SCN_CNT_CODE)
               found = 1;
       }
-      else if (strncmp(reinterpret_cast<const char*>(hdr->Name), 
-                       my_name, match_len) == 0) 
+      else if (strncmp(reinterpret_cast<const char*>(hdr->Name),
+                       my_name, match_len) == 0)
       {
           found = 1;
       }
       if (found) {
             // Found it.  Extract the info and return.
             virtual_addr  = hdr->VirtualAddress  + image_base;
-            section_size = (hdr->Misc.VirtualSize > 0 ? 
+            section_size = (hdr->Misc.VirtualSize > 0 ?
                             hdr->Misc.VirtualSize
                             : hdr->SizeOfRawData);
-            section_start = (xed_uint8_t*)ptr_add(base_, 
+            section_start = (xed_uint8_t*)ptr_add(base_,
                                                   hdr->PointerToRawData);
             section_index = ii+1;
             hdr++;
@@ -393,10 +397,10 @@ private:
     const IMAGE_DOS_HEADER* dh = static_cast<const IMAGE_DOS_HEADER*>(base_);
     if (dh->e_magic != IMAGE_DOS_SIGNATURE)
         return false;
-        
+
     // Point to the PE signature word and check it.
     const DWORD* sig = static_cast<const DWORD*>(ptr_add(base_, dh->e_lfanew));
-        
+
     // This must be a valid PE file with a valid DOS header.
     if (*sig != IMAGE_NT_SIGNATURE)
         return false;
@@ -410,16 +414,16 @@ private:
   {
     // Oh joy - the format of a .obj file on Windows is *different*
     // from the format of a .exe file.  Deal with that.
-        
+
     // Check the header to see if this is a valid .exe file
     if (is_valid_module())
       {
         // Point to the DOS header.
-        const IMAGE_DOS_HEADER* dh = 
+        const IMAGE_DOS_HEADER* dh =
             static_cast<const IMAGE_DOS_HEADER*>(base_);
-            
+
         // Point to the COFF File Header (just after the signature)
-        ifh = static_cast<const IMAGE_FILE_HEADER*>(ptr_add(base_, 
+        ifh = static_cast<const IMAGE_FILE_HEADER*>(ptr_add(base_,
                                                             dh->e_lfanew + 4));
       }
     else
@@ -427,9 +431,9 @@ private:
         // Maybe this is a .obj file, which starts with the image file header
         ifh = static_cast<const IMAGE_FILE_HEADER*>(base_);
       }
-        
 
-    
+
+
 #if !defined(IMAGE_FILE_MACHINE_AMD64)
 # define IMAGE_FILE_MACHINE_AMD64 0x8664
 #endif
@@ -448,9 +452,9 @@ private:
         // We only support Windows formats on IA32 and Intel64
         return false;
     }
-        
+
     *pimage_base = 0;
-        
+
     // Very important to use the 32b header here because the
     // unqualified IMAGE_OPTIONAL_HEADER gets the wrong version on
     // win64!
@@ -490,13 +494,13 @@ private:
             return false;
 #endif
           }
-        else 
+        else
           {
             // Optional header is not a form we recognize, so punt.
             return false;
           }
       }
-        
+
     // Point to the first of the Section Headers
     *phdr = static_cast<const IMAGE_SECTION_HEADER*>(ptr_add(opthdr32,
                                                   ifh->SizeOfOptionalHeader));
@@ -534,7 +538,7 @@ char* windows_symbols_callback(xed_uint64_t addr, void* closure) {
     int r = p->get_symbol(addr, buffer, sizeof(char)*2000);
     if (r == 0) {
         int n = (int)strlen(buffer)+1;
-        char* symbol = new char[n]; 
+        char* symbol = new char[n];
         symbol[0]=0;
         xed_strncat(symbol, buffer, n);
         return symbol;
@@ -549,7 +553,7 @@ int xed_pecoff_callback_function(
     char* symbol_buffer,
     xed_uint32_t buffer_length,
     xed_uint64_t* offset,
-    void* caller_data) 
+    void* caller_data)
 {
     dbg_help_client_t* p = (dbg_help_client_t*)caller_data;
     int r = p->get_symbol(address, symbol_buffer, buffer_length, offset);
@@ -586,7 +590,7 @@ process_pecoff(xed_uint8_t* start,
   xed_uint8_t* section_start = 0;
   xed_uint32_t section_size = 0;
   xed_uint64_t runtime_vaddr  = 0;
-    
+
   xed_bool_t okay = true;
   xed_bool_t found = false;
 #if defined(XED_USING_DEBUG_HELP)
@@ -594,13 +598,13 @@ process_pecoff(xed_uint8_t* start,
                                decode_info.symbol_search_path);
   if (init_ok == 0) {
      if (CLIENT_VERBOSE0)   {
-         if (dot_obj(decode_info.input_file_name)) 
+         if (dot_obj(decode_info.input_file_name))
              fprintf(stderr,
                      "WARNING: No COFF symbol support yet for OBJ files.\n");
          else
              fprintf(stderr,
                      "WARNING: DBGHELP initialization failed. "
-                     "Please copy the appropriate\n" 
+                     "Please copy the appropriate\n"
                      "  (ia32,intel64) dbghelp.dll to the directory "
                      "where your xed.exe exists.\n"
                      "   Version 6.9.3.113 or later is required.\n");
@@ -615,14 +619,16 @@ process_pecoff(xed_uint8_t* start,
                                         section_start,
                                         section_size,
                                         runtime_vaddr);
-      if (okay) { 
-          if (decode_info.xml_format == 0) 
+      if (okay) {
+#ifndef PYTHON
+          if (decode_info.xml_format == 0)
               printf ("# SECTION %u\n", reader.section_index-1);
+#endif
           found = true;
 
           decode_info.s = XED_REINTERPRET_CAST(unsigned char*,start);
           decode_info.a =
-              XED_REINTERPRET_CAST(unsigned char*,section_start); 
+              XED_REINTERPRET_CAST(unsigned char*,section_start);
           decode_info.q = XED_REINTERPRET_CAST(unsigned char*,
                                       section_start + section_size);
 
@@ -633,11 +639,11 @@ process_pecoff(xed_uint8_t* start,
 #if defined(XED_USING_DEBUG_HELP)
           if (dbg_help.valid()) {
               decode_info.line_number_info_fn = print_file_and_line;
-                            
+
               // This version is slow
               //decode_info.symfn = windows_symbols_callback;
               //decode_info.caller_symbol_data = &dbg_help;
-              
+
               // This version is faster
               decode_info.symfn = get_symbol;
               decode_info.caller_symbol_data = &(dbg_help.sym_tab);
@@ -666,8 +672,8 @@ xed_disas_pecoff(xed_disas_info_t* fi)
   void* vregion = 0;
   xed_uint32_t len = 0;
   pecoff_reader_t image_reader(fi->xml_format==0);
-  xed_bool_t okay = image_reader.map_region(fi->input_file_name, 
-                                            vregion, 
+  xed_bool_t okay = image_reader.map_region(fi->input_file_name,
+                                            vregion,
                                             len);
   if (!okay)
     xedex_derror("image read failed");
@@ -687,12 +693,12 @@ xed_disas_pecoff(xed_disas_info_t* fi)
        * 64b binary */
       fi->dstate.mmode = XED_MACHINE_MODE_LONG_64;
   }
-  
+
   process_pecoff(region, len,  *fi, image_reader);
   if (fi->xml_format == 0)
       xed_print_decode_stats(fi);
 }
- 
+
 
 
 #endif
