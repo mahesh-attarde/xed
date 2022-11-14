@@ -348,6 +348,14 @@ xed_operand_values_has_rexw_prefix(const xed_operand_values_t* p)
     return 0;
 }
 
+#if defined(XED_AVX)
+xed_bits_t
+xed_operand_values_get_pp_vex_prefix(const xed_operand_values_t* p)
+{
+    return vex_prefix_recoding[xed3_operand_get_vex_prefix(p)];
+}
+#endif
+
 xed_bool_t
 xed_operand_values_accesses_memory(const xed_operand_values_t* p)
 {
@@ -1042,16 +1050,6 @@ xed_operand_values_dump(    const xed_operand_values_t* ov,
                           }
                           break;
                       }
-#if defined(XED_OPERAND_ELEMENT_TYPE_ENUM_T_DEFINED) // used by KNC
-                      case XED_OPERAND_ELEMENT_TYPE_ENUM_T: {
-                          xed_operand_element_type_enum_t etype = xed3_operand_get_type(ov);
-                          if (etype){
-                              blen = xed_strncpy(tmp_buf, xed_operand_element_type_enum_t2str(etype),blen);
-                              need_to_emit = 1;
-                          }
-                          break;
-                      }
-#endif
                       default: {
                         xed_bits_t b;
                         xed3_get_generic_operand(ov,i,&b);

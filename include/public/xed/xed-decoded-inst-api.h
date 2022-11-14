@@ -382,7 +382,7 @@ xed_decoded_inst_get_iform_enum(const xed_decoded_inst_t* p) {
 static XED_INLINE unsigned int
 xed_decoded_inst_get_iform_enum_dispatch(const xed_decoded_inst_t* p) {
     xed_assert(p->_inst != 0);
-    return xed_inst_iform_enum(p->_inst) -
+    return XED_STATIC_CAST(xed_uint_t, xed_inst_iform_enum(p->_inst)) -
                 xed_iform_first_per_iclass(xed_inst_iclass(p->_inst));
 }
 //@}
@@ -678,6 +678,9 @@ xed_decoded_inst_set_user_data(xed_decoded_inst_t* p,
 /// @name xed_decoded_inst_t Classifiers
 //@{
 /// @ingroup DEC
+/// True for AMX instructions
+XED_DLL_EXPORT xed_bool_t
+xed_classify_amx(const xed_decoded_inst_t* d);
 /// True for AVX512 (EVEX-encoded) SIMD and (VEX encoded) K-mask instructions
 XED_DLL_EXPORT xed_bool_t
 xed_classify_avx512(const xed_decoded_inst_t* d);

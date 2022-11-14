@@ -8,7 +8,7 @@ def main():
    print('.intel_syntax noprefix')
    for instrNode in root.iter('instruction'):
       # Future instruction set extensions
-      if instrNode.attrib['extension'] in ['AMD_INVLPGB', 'AMX_BF16', 'AMX_INT8', 'AMX_TILE', 'AVX_VNNI', 'ENQCMD', 'HRESET', 'KEYLOCKER', 'KEYLOCKER_WIDE', 'SERIALIZE', 'SNP', 'TDX', 'TSX_LDTRK', 'UINTR']:
+      if instrNode.attrib['extension'] in ['AMD_INVLPGB', 'AMX_BF16', 'AMX_INT8', 'AMX_TILE', 'AVX_IFMA', 'AVX_NE_CONVERT', 'AVX_VNNI', 'AVX_VNNI_INT8', 'CMPCCXADD', 'ENQCMD', 'HRESET', 'ICACHE_PREFETCH', 'KEYLOCKER', 'KEYLOCKER_WIDE', 'MSRLIST', 'RAO_INT', 'SERIALIZE', 'SNP', 'TDX', 'TSX_LDTRK', 'UINTR', 'WRMSRNS']:
          continue
       if any(x in instrNode.attrib['isa-set'] for x in ['FP16']):
          continue
