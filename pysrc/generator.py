@@ -592,12 +592,13 @@ def generateXMLFile(agi):
                                  XMLInstr.attrib['asm'] += 'W'
                                  stringSuffix += '_W'
                               if eosz == 3:
-                                 if (ii.iclass in ['REP_INSD', 'REP_OUTSD', 'SLDT', 'STR', 'XBEGIN', 'XSTORE']) or (ii.iform_enum in ['MOV_GPRv_SEG']):
+                                 if (ii.iclass in ['REP_INSD', 'REP_OUTSD', 'XBEGIN', 'XSTORE']) :
                                     XMLInstr.attrib['asm'] = 'REX64 ' + XMLInstr.attrib['asm']
                                     stringSuffix += '_REX64'
-                                 elif ii.iclass in ['RET_FAR']:
+                                 elif (ii.iclass in ['RET_FAR', 'SLDT', 'STR']) or (ii.iform_enum in ['MOV_GPRv_SEG']):
                                     XMLInstr.attrib['asm'] += 'Q'
-                                    stringSuffix += '_Q'
+                                    if ii.iclass in ['RET_FAR']:
+                                       stringSuffix += '_Q'
                               if ii.iclass in ['SYSRET64', 'PCMPESTRI64', 'PCMPESTRM64', 'PCMPISTRI64', 'VPCMPESTRI64', 'VPCMPESTRM64', 'VPCMPISTRI64']:
                                  XMLInstr.attrib['asm'] += 'Q'
 
