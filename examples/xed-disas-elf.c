@@ -1,6 +1,6 @@
-/*BEGIN_LEGAL
+/* BEGIN_LEGAL 
 
-Copyright (c) 2019 Intel Corporation
+Copyright (c) 2021 Intel Corporation
 
   Licensed under the Apache License, Version 2.0 (the "License");
   you may not use this file except in compliance with the License.
@@ -147,7 +147,7 @@ static void read_dwarf_line_numbers(void* region,
         Dwarf_Signed line_count;
 
         dres = dwarf_next_cu_header(dbg, 0, 0, 0, 0, &next_cu_offset, 0);
-        if (dres != DW_DLV_OK)
+        if (dres != DW_DLV_OK) 
             break;
         // Doc says first die is compilation unit
         if (dwarf_siblingof(dbg, 0, &cu_die, 0) != DW_DLV_OK)
@@ -262,7 +262,7 @@ disas_test32(xed_disas_info_t* fi,
 	     void* start,
              unsigned int length,
 	     Elf32_Off offset,
-	     Elf32_Word size,
+	     Elf32_Word size, 
              Elf32_Addr runtime_vaddr,
              xed_symbol_table_t* symbol_table)
 {

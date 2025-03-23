@@ -2,7 +2,7 @@
 # -*- python -*-
 #BEGIN_LEGAL
 #
-#Copyright (c) 2019 Intel Corporation
+#Copyright (c) 2024 Intel Corporation
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@
 
 import sys
 import os
+from pysrc import genutil
 
 from platform import system
 from setuptools import setup, Extension
@@ -28,17 +29,6 @@ from setuptools import setup, Extension
 # Assume mbuild is next to the current source directory
 # put mbuild on the import path
 # from "path-to-xed/xed2/mfile.py" obtain: "path-to-xed/xed2".
-
-def find_dir(d):
-    dir = os.getcwd()
-    last = ''
-    while dir != last:
-        target_dir = os.path.join(dir,d)
-        if os.path.exists(target_dir):
-            return target_dir
-        last = dir
-        (dir,tail) = os.path.split(dir)
-    return None
 
 def fatal(m):
     sys.stderr.write("\n\nXED build error: %s\n\n" % (m) )
@@ -61,7 +51,7 @@ def find_mbuild_import():
     mbuild_install_path_derived = \
                    os.path.join(os.path.dirname(script_name), '..', 'mbuild')
 
-    mbuild_install_path_relative = find_dir('mbuild')
+    mbuild_install_path_relative = genutil.find_dir('mbuild')
     mbuild_install_path = mbuild_install_path_derived
     if not os.path.exists(mbuild_install_path):
         if not mbuild_install_path_relative:
@@ -87,12 +77,7 @@ def find_mbuild_import():
     sys.path.insert(0,mbuild_install_path)
 
 def work():
-    if sys.version_info[0] == 3:
-        if sys.version_info[1] < 4:
-            fatal("Need python version 3.4 or later.")
-    else:
-        fatal("Need python version 3.4 or later.")
-
+    genutil.check_python_version(3,9)
     try:
         find_mbuild_import()
     except:

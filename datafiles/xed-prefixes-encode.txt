@@ -1,6 +1,6 @@
 #BEGIN_LEGAL
 #
-#Copyright (c) 2019 Intel Corporation
+#Copyright (c) 2023 Intel Corporation
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -98,25 +98,39 @@ SEG1=XED_REG_SS  -> SEG_OVD=6
 
 
 REX_PREFIX_ENC()::
-mode64   NOREX=0  NEEDREX=1 REXW[w] REXB[b] REXX[x] REXR[r] -> 0b0100 wrxb
-mode64   NOREX=0  REX=1     REXW[w] REXB[b] REXX[x] REXR[r] -> 0b0100 wrxb
-mode64   NOREX=0            REXW[w]=1 REXB[b] REXX[x] REXR[r] -> 0b0100 wrxb
-mode64   NOREX=0            REXW[w] REXB[b]=1 REXX[x] REXR[r] -> 0b0100 wrxb
-mode64   NOREX=0            REXW[w] REXB[b] REXX[x]=1 REXR[r] -> 0b0100 wrxb
-mode64   NOREX=0            REXW[w] REXB[b] REXX[x] REXR[r]=1 -> 0b0100 wrxb
-mode64   NOREX=1  NEEDREX=1  -> error
-mode64   NOREX=1  REX=1      -> error
-mode64   NOREX=1  REXW=1     -> error
-mode64   NOREX=1  REXB=1     -> error
-mode64   NOREX=1  REXX=1     -> error
-mode64   NOREX=1  REXR=1     -> error
-mode64            NEEDREX=0 REX=0 REXW=0 REXB=0 REXX=0 REXR=0 -> nothing
+#### REX2 ####
+# NOREX2=1 : Illegal REX2 prefix
+# REX2=1   : opcode refining prefix (REX2 is required)
+#
+# Set the REX2 operand to skip a later escape byte emit
+# MAP must be in [0,1]. This check is executed as part of the encoder input checks set
+# so we don't need to double check it here
+mode64  NOREX=0 NOREX2=0 REX2=1  REXR4[u] REXX4[y] REXB4[z] MAP[m] REXW[w] REXR[r] REXX[x] REXB[b] -> 0xd5 muyz_wrxb
+mode64  NOREX=0 NOREX2=0         REXR4[u]=1 REXX4[y] REXB4[z] MAP[m] REXW[w] REXB[b] REXX[x] REXR[r] -> 0xd5 muyz_wrxb REX2=1
+mode64  NOREX=0 NOREX2=0         REXR4[u] REXX4[y]=1 REXB4[z] MAP[m] REXW[w] REXB[b] REXX[x] REXR[r] -> 0xd5 muyz_wrxb REX2=1
+mode64  NOREX=0 NOREX2=0         REXR4[u] REXX4[y] REXB4[z]=1 MAP[m] REXW[w] REXB[b] REXX[x] REXR[r] -> 0xd5 muyz_wrxb REX2=1
+mode64  NOREX2=1  REX2=1      -> error
+mode64  NOREX2=1  REXB4=1     -> error
+mode64  NOREX2=1  REXX4=1     -> error
+mode64  NOREX2=1  REXR4=1     -> error
 
-# If any REX bit shows up in 32 or 16b mode, we have an error. ensure everything is zero
-mode32          REX=0 REXW=0    REXB=0    REXX=0    REXR=0       -> nothing
-mode16          REX=0 REXW=0    REXB=0    REXX=0    REXR=0       -> nothing
+#### REX ####
+mode64  REX2=0 NOREX=0  NEEDREX=1 REXR4=0 REXX4=0 REXB4=0 REXW[w] REXB[b] REXX[x] REXR[r]  -> 0b0100 wrxb
+mode64  REX2=0 NOREX=0  REX=1     REXR4=0 REXX4=0 REXB4=0 REXW[w] REXB[b] REXX[x] REXR[r]  -> 0b0100 wrxb
+mode64  REX2=0 NOREX=0            REXR4=0 REXX4=0 REXB4=0 REXW[w]=1 REXB[b] REXX[x] REXR[r] -> 0b0100 wrxb
+mode64  REX2=0 NOREX=0            REXR4=0 REXX4=0 REXB4=0 REXW[w] REXB[b]=1 REXX[x] REXR[r] -> 0b0100 wrxb
+mode64  REX2=0 NOREX=0            REXR4=0 REXX4=0 REXB4=0 REXW[w] REXB[b] REXX[x]=1 REXR[r] -> 0b0100 wrxb
+mode64  REX2=0 NOREX=0            REXR4=0 REXX4=0 REXB4=0 REXW[w] REXB[b] REXX[x] REXR[r]=1 -> 0b0100 wrxb
+mode64  NOREX=1  NEEDREX=1  -> error
+mode64  NOREX=1  REX=1      -> error
+mode64  NOREX=1  REXW=1     -> error
+mode64  NOREX=1  REXB=1     -> error
+mode64  NOREX=1  REXX=1     -> error
+mode64  NOREX=1  REXR=1     -> error
 
-# or die...1
+#### No REX/2 (All modes) ####
+HAS_EGPR=0 NEEDREX=0 REX=0 REX2=0 REXR4=0 REXX4=0 REXB4=0 REXW=0 REXB=0 REXX=0 REXR=0 -> nothing
+# or die...
 otherwise                                                        -> error
 
 # This checks that we didn't try to use a byte register that requires
@@ -129,10 +143,10 @@ otherwise                                                        -> error
 
 PREFIX_ENC()::
 # create an "OR" of REFINING=2 and REP=2
-REP=2 -> 0xf2 no_return
-REP=3 -> 0xf3 no_return
+VV0 REP=2 -> 0xf2 no_return
+VV0 REP=3 -> 0xf3 no_return
 #
-66_prefix                  -> 0x66 no_return
+VV0 66_prefix              -> 0x66 no_return
 67_prefix                  -> 0x67 no_return
 lock_prefix                -> 0xf0 no_return
 fs_prefix                  -> 0x64 no_return
@@ -195,6 +209,7 @@ VEXVALID=0 mode64 EOSZ=3 DF64=1 -> nothing
 #VEXVALID=0 mode64 EOSZ=3 DF64=0 SKIP_OSZ=1 -> nothing
 #VEXVALID=0 mode64 EOSZ=3 DF64=0 SKIP_OSZ=0 -> REXW=1
 VEXVALID=0 mode64 EOSZ=3 DF64=0 -> REXW=1
+
 otherwise -> nothing
 
 # The REFINING66() decode version is required for when we have a 66

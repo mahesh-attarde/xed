@@ -1,6 +1,6 @@
 #BEGIN_LEGAL
 #
-#Copyright (c) 2022 Intel Corporation
+#Copyright (c) 2023 Intel Corporation
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -17,9 +17,10 @@
 #END_LEGAL
 
 GRANITE_RAPIDS:              \  
-     ALL_OF(SAPPHIRE_RAPIDS) \
+     ALL_OF(EMERALD_RAPIDS)  \
      ALL_OF(ALDER_LAKE)      \
      NOT(KEYLOCKER)          \
      NOT(KEYLOCKER_WIDE)     \
      AMX_FP16                \
+     AMX_COMPLEX             \
      ICACHE_PREFETCH         

@@ -9,7 +9,7 @@
 #
 #Original copyright notice:
 #
-#Copyright (c) 2019 Intel Corporation
+#Copyright (c) 2024 Intel Corporation
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -72,6 +72,9 @@ import glob
 import re
 import optparse
 import collections
+from typing import Optional
+
+from genutil import add_mbuild_to_path, find_dir
 
 ############################################################################
 ## XED-to-XML code
@@ -135,7 +138,6 @@ def isInconsistent(bit, token, value):
 def getAllRegisterNamesForOperand(operand, agi, mask, multireg, EOSZ=None, rex=None, highLow=None, rmBits=None):
    if operand.type == 'nt_lookup_fn':
       o = operand.lookupfn_name
-
       returnList = []
       for rule in agi.generator_dict[o].parser_output.instructions:
          admissibleRule = True
@@ -150,6 +152,18 @@ def getAllRegisterNamesForOperand(operand, agi, mask, multireg, EOSZ=None, rex=N
             if ('REX' in b.token) and isInconsistent(b, b.token, 0):
                rexFound = True
             if (rmBits is not None) and all(isInconsistent(b, 'RM', rb) for rb in rmBits):
+               admissibleRule = False
+               break
+            if (isInconsistent(b, 'REX2', 0)):
+               # ToDo
+               admissibleRule = False
+               break
+            if 'GPR' in o and (isInconsistent(b, 'REXB4', 0) or isInconsistent(b, 'REXR4', 0)):
+               # ToDo
+               admissibleRule = False
+               break
+            if 'GPR8' in o and isInconsistent(b, 'VEXVALID', 0):
+               # ToDo
                admissibleRule = False
                break
 
@@ -324,6 +338,8 @@ def getInstrString(XMLInstr, stringSuffix):
                parList.append('YMM')
             elif 'ZMM' in opNode.text:
                parList.append('ZMM')
+            elif 'TMM' in opNode.text:
+               parList.append('TMM')
             elif 'MM' in opNode.text:
                parList.append('MM')
             elif 'K1' in opNode.text:
@@ -424,6 +440,14 @@ def generateXMLFile(agi):
             continue
          if ii.iclass == 'SYSRET' and any(op for op in ii.operands if op.bits == 'XED_REG_EIP'):
             continue
+         if 'APX' in ii.extension or 'APX' in ii.isa_set or 'AVX10' in ii.isa_set or ii.extension == 'FRED':
+            # ToDo
+            continue
+         if ('AVX512_SAT' in ii.isa_set or 'SM4' in ii.isa_set or 'AVX512_VNNI_INT' in ii.isa_set or 'AVX512_VNNI_FP' in ii.isa_set or 'AVX512_M' in ii.isa_set
+               or 'AVX512_N' in ii.isa_set or 'AVX512_FP16_CONVERT' in ii.isa_set or 'AVX512_COM_EF_SCALAR' in ii.isa_set or 'AVX512_BF16_N' in ii.isa_set
+               or ii.isa_set in ['AMX_AVX512']):
+            # ToDo
+            continue
          allInstructions.append(ii)
 
    iclassDict = {}
@@ -437,7 +461,7 @@ def generateXMLFile(agi):
       XMLExtension = SubElement(XMLRoot, 'extension')
       XMLExtension.attrib['name'] = ext
 
-   addedXMLInstrs = {}
+   XMLInstrs = {}
    for ii in sorted(allInstructions, key=str):
       # EVEX encoded instructions for which an {evex} specifier is required as there is a corresponding non-EVEX
       # encoded instruction that the assembler might prefer
@@ -446,7 +470,8 @@ def generateXMLFile(agi):
 
       # VEX encoded instructions for which a {vex} specifier is required as there is a corresponding non-VEX encoded
       # instruction that the assembler might prefer
-      requiresVexSpecifier = (ii.is_vex() and (ii.extension not in ['AVX', 'AVX2', 'AVX2GATHER', 'AVXAES', 'F16C', 'FMA', 'GFNI', 'VAES', 'VPCLMULQDQ']) and
+      requiresVexSpecifier = (ii.is_vex() and (ii.extension not in ['AVX', 'AVX2', 'AVX2GATHER', 'AVXAES', 'F16C', 'FMA', 'GFNI', 'MSR_IMM', 'USER_MSR',
+                                                                    'VAES', 'VPCLMULQDQ']) and
                               any(ii2 for ii2 in iclassDict[ii.iclass] if not ii2.is_vex()))
 
       modeSet = findPossibleValuesForToken(ii.ipattern.bits, 'MODE', {}, agi)
@@ -591,15 +616,18 @@ def generateXMLFile(agi):
                                     ii.iform_enum in ['FLDENV_MEMmem14', 'FNSTENV_MEMmem14', 'FNSAVE_MEMmem94', 'FRSTOR_MEMmem94']):
                                  XMLInstr.attrib['asm'] += 'W'
                                  stringSuffix += '_W'
+                              if eosz == 2 and ii.iclass == 'RET_FAR':
+                                  XMLInstr.attrib['asm'] += 'D'
                               if eosz == 3:
                                  if (ii.iclass in ['REP_INSD', 'REP_OUTSD', 'XBEGIN', 'XSTORE']) :
                                     XMLInstr.attrib['asm'] = 'REX64 ' + XMLInstr.attrib['asm']
                                     stringSuffix += '_REX64'
-                                 elif (ii.iclass in ['RET_FAR', 'SLDT', 'STR']) or (ii.iform_enum in ['MOV_GPRv_SEG']):
+                                 elif (ii.iclass in ['LAR', 'LSL', 'SLDT', 'STR']) or (ii.iform_enum in ['MOV_GPRv_SEG']):
+                                    XMLInstr.attrib['asm'] = 'REX64 ' + XMLInstr.attrib['asm']
+                                 elif (ii.iclass in ['RET_FAR']):
                                     XMLInstr.attrib['asm'] += 'Q'
-                                    if ii.iclass in ['RET_FAR']:
-                                       stringSuffix += '_Q'
-                              if ii.iclass in ['SYSRET64', 'PCMPESTRI64', 'PCMPESTRM64', 'PCMPISTRI64', 'VPCMPESTRI64', 'VPCMPESTRM64', 'VPCMPISTRI64']:
+                                    stringSuffix += '_Q'
+                              if ii.iclass in ['SYSEXIT', 'SYSRET64', 'PCMPESTRI64', 'PCMPESTRM64', 'PCMPISTRI64', 'VPCMPESTRI64', 'VPCMPESTRM64', 'VPCMPISTRI64']:
                                  XMLInstr.attrib['asm'] += 'Q'
 
                               if requiresEvexSpecifier and not maskop:
@@ -650,7 +678,7 @@ def generateXMLFile(agi):
                               for operand in ii.operands:
                                  if operand.internal:
                                     continue
-                                 if operand.lookupfn_name and 'FLAGS' in operand.lookupfn_name:
+                                 if (operand.lookupfn_name and 'FLAGS' in operand.lookupfn_name) or (operand.bits and 'FLAGS' in operand.bits):
                                     continue
                                  if any(x in operand.name for x in ['BASE', 'INDEX', 'SEG']):
                                     continue
@@ -790,16 +818,18 @@ def generateXMLFile(agi):
                                     XMLOperand.attrib['idx'] = str(len(XMLInstr.findall('operand')) + 1)
                                     XMLOperand.attrib['type'] = 'flags'
                                     XMLOperand.attrib['suppressed'] = '1'
-                                    if operand.lookupfn_name and 'FLAGS' in operand.lookupfn_name:
-                                       XMLOperand.attrib['name'] = operand.name
+                                    for operand in ii.operands:
+                                       if (operand.lookupfn_name and 'FLAGS' in operand.lookupfn_name) or (operand.bits and 'FLAGS' in operand.bits):
+                                          XMLOperand.attrib['name'] = operand.name
                                     XMLInstr.append(XMLOperand)
+
 
                               instrString = getInstrString(XMLInstr, stringSuffix)
                               XMLInstr.attrib['string'] = instrString
 
-                              if instrString in addedXMLInstrs:
+                              if instrString in XMLInstrs:
                                  XMLStr = tostring(XMLInstr).decode()
-                                 prevXMLStr = tostring(addedXMLInstrs[instrString]).decode()
+                                 prevXMLStr = tostring(XMLInstrs[instrString]).decode()
                                  if XMLStr == prevXMLStr:
                                     msge('Duplicate: ' + ii.iform_enum)
                                  else:
@@ -807,12 +837,12 @@ def generateXMLFile(agi):
                                     msge('  ' + prevXMLStr)
                                     msge('  ' + XMLStr)
                               else:
-                                 addedXMLInstrs[instrString] = XMLInstr
-                                 XMLRoot.find('extension[@name="'+ii.extension+'"]').append(XMLInstr)
+                                 XMLInstrs[instrString] = XMLInstr
+
 
    # add missing attributes that are necessary to distinguish instruction variants with the same iforms
    iformToXML = defaultdict(list)
-   for XMLInstr in XMLRoot.iter('instruction'):
+   for XMLInstr in XMLInstrs.values():
       iformToXML[XMLInstr.attrib['iform']].append(XMLInstr)
 
    for _, XMLList in iformToXML.items():
@@ -824,6 +854,9 @@ def generateXMLFile(agi):
          XMLInstr.attrib = dict(sorted(XMLInstr.attrib.items()))
          for op in XMLInstr.iter():
             op.attrib = dict(sorted(op.attrib.items()))
+
+   for _, XMLInstr in sorted(XMLInstrs.items()):
+      XMLRoot.find('extension[@name="'+XMLInstr.attrib['extension']+'"]').append(XMLInstr)
 
    rough_string = ElementTree.tostring(XMLRoot, 'utf-8')
    reparsed = minidom.parseString(rough_string)
@@ -844,9 +877,11 @@ def find_dir(d):
     return None
 
 mbuild_install_path = os.path.join(os.path.dirname(sys.argv[0]), '..', 'mbuild')
-if not os.path.exists(mbuild_install_path):
-    mbuild_install_path =  find_dir('mbuild')
-sys.path=  [mbuild_install_path]  + sys.path
+if os.path.exists(mbuild_install_path):
+    sys.path = [mbuild_install_path]  + sys.path
+else:
+    add_mbuild_to_path()
+
 try:
    import mbuild
 except:
@@ -863,6 +898,7 @@ sys.path=  [ os.path.join(xed2_src_path,'pysrc') ]  + sys.path
 from genutil import *
 import genutil
 import operand_storage
+from operand_storage import operands_storage_t
 import slash_expand
 import flag_gen
 from verbosity import *
@@ -877,7 +913,7 @@ if send_stdout_message_to_file:
    set_msgs(open(fn,"w"))
    sys.stderr.write("Writing messages to file: [" + fn + "]\n")
 
-check_python_version(2,4)
+genutil.check_python_version(3,9)
 
 from codegen import *
 import metaenum
@@ -1700,15 +1736,15 @@ class partitionable_info_t(object):
       self.input_str = ''
 
       self.ipattern_input = ipattern_input
-      self.ipattern =  None # bits_list_t()
-      self.prebindings = None # dictionary
+      self.ipattern : bits_list_t = None
+      self.prebindings : dict[str, prebinding_t] = {}
 
       if operands_input:
           self.operands_input = operands_input
       else:
           self.operands_input = []
 
-      self.operands = [] # list of opnds.operand_info_t's
+      self.operands : list[opnds.operand_info_t] = []
 
       # FOR HIERARCHICAL RECORDS -- THESE GET SPLIT OFF AFTER RECORD-READ
       self.extra_ipatterns = []
@@ -2222,8 +2258,21 @@ def mk_opnd(agi, s, default_vis='DEFAULT'):
                                  agi.widths_dict)
     return op
 
+def skip_flags_reg_gen(ii):
+   # do not duplicate the flags register for instructions with "implicit" flags reg
+   for op in ii.operands:
+      if op.bits in ['XED_REG_FLAGS', 'XED_REG_EFLAGS', 'XED_REG_RFLAGS']:
+         return True
+      if op.lookupfn_name == 'rFLAGS': # allow rflags NT as well
+         return True
+   return False
+
 def add_flags_register_operand(agi,ii):
    """If the instruction has flags, then add a flag register operand."""
+
+   if skip_flags_reg_gen(ii):
+      return
+
    if field_check(ii,'flags_info') and \
            ii.flags_info and ii.flags_info.x86_flags():
       rw = ii.flags_info.rw_action()
@@ -2931,28 +2980,37 @@ def renumber_bitpos(ilist):
     for i in ilist:
         renumber_one_ipattern(i)
 
+def is_repleaceable(bitpos, bit_list):
+   """Checks whether an operand decider can be moved to the current bitpos
+   without causing disarray and messing with sequential bits such as  MOD[mm] REG[rrr] RM[nnn]"""
+   if bitpos == 0 or bit_list[bitpos].is_operand_decider() or bit_list[bitpos].is_nonterminal():
+      return True
+
+   curr_bit, prev_bit = bit_list[bitpos], bit_list[bitpos - 1]
+
+   # if not the beginning of sequential don't cares;[r r r] or [n n n] or [m m]
+   if curr_bit == prev_bit:
+      return False
+
+   if curr_bit.is_one_or_zero() and prev_bit.is_one_or_zero():
+      return False
+
+   return True
+
 def rearrange_at_conflict(ilist,bitpos):
    """Try to rearrange ODs at a conflict"""
 
    # build up a list of candidate ods
 
-   # FIXME 2008-11-12 Mark Charney: could search for all sequential
-   # ODs rather than just one neighboring OD.
+   # search for all sequential ODs rather than just one neighboring OD.
 
    candidate_ods = []
    for i in ilist:
       if bitpos >= len(i.ipattern.bits):
          return False
-      if i.ipattern.bits[bitpos].is_operand_decider():
-         t = i.ipattern.bits[bitpos].token
-         if t not in candidate_ods:
-            candidate_ods.append(t)
-
-         # look ahead one spot too...
-         nbitpos = bitpos+1
-         if nbitpos < len(i.ipattern.bits):
-            if i.ipattern.bits[nbitpos].is_operand_decider():
-               t = i.ipattern.bits[nbitpos].token
+      for k in range(bitpos, len(i.ipattern.bits)):
+         if i.ipattern.bits[k].is_operand_decider():
+               t = i.ipattern.bits[k].token
                if t not in candidate_ods:
                   candidate_ods.append(t)
 
@@ -2967,11 +3025,10 @@ def rearrange_at_conflict(ilist,bitpos):
       msge("REARRANGE ATTEMPT  using %s" % (candidate_od))
       retry = False
       for i in ilist:
-         if i.ipattern.bits[bitpos].is_operand_decider():
-            if candidate_od == i.ipattern.bits[bitpos].token:
+         if i.ipattern.bits[bitpos].is_operand_decider() and candidate_od == i.ipattern.bits[bitpos].token:
                msge("\tSKIPPING %s inum %d -- already fine" %
                     ( i.get_iclass(), i.inum))
-            else:
+         elif is_repleaceable(bitpos, i.ipattern.bits):
                msge("\tREARRANGE needs to juggle: %s inum %d" %
                     ( i.get_iclass(), i.inum))
                # attempt to juggle ODs in i.ipattern.bits to get
@@ -4414,6 +4471,7 @@ def compute_iform(options,ii, operand_storage_dict):
 
       elif operand.type == 'nt_lookup_fn':
          s = operand.lookupfn_name_base
+         s = s.replace('VGPR', 'GPR') # Drop the 'v' (VGPR is a 16-regs VEX NT)
          if operand.oc2 and s not in ['X87'] :
             if operand.oc2 == 'v' and s[-1] == 'v':
                pass # avoid duplicate v's
@@ -5609,36 +5667,43 @@ def expand_hierarchical_records(ii):
    return new_lines
 
 
-
 # $$ generator_common_t
 class generator_common_t(object):
-   """This is stuff that is common to every geneator and the
+   """
+   Items that are common to every generator and the
    agi. Basically all the globals that are needed by most generator
-   specific processing."""
+   specific processing.
+   """
 
    def __init__(self):
-      self.options = None
-      self.state_bits = None # dictionary of state_info_t's
-      self.state_space = None # dictionary of all values of each state
-                              # restriction (operand_decider)
+      self.options: Optional[object] = None
+      self.state_bits: Optional[dict[str, state_info_t]] = None
 
-      self.enc_file = None
-      self.inst_file = None
-      self.operand_storage_hdr_file = None
-      self.operand_storage_src_file = None
+      # dictionary of all values of each state restriction (operand_decider)
+      self.state_space: Optional[dict[str, list[str]]] = None
 
-      self.header_file_names = []
-      self.source_file_names = []
-      self.file_pointers = []
+      self.enc_file: Optional[xed_file_emitter_t] = None
+      self.inst_file: Optional[xed_file_emitter_t] = None
+      self.operand_storage_header_file: Optional[xed_file_emitter_t] = None
+      self.operand_storage_src_file: Optional[xed_file_emitter_t] = None
 
-      self.inst_table_file_names = []
+      self.header_file_names: list[str] = []
+      self.source_file_names: list[str] = []
+      self.file_pointers: list[xed_file_emitter_t] = []
 
-   def get_state_space_values(self,od_token):
-       '''return the list of values associated with this token'''
+      self.inst_table_file_names: list[str] = []
+
+   def get_state_space_values(self, od_token: str) -> list[str]:
+       """
+       Get the list of values associated with `operand_decider_token`
+       """
+
        return self.state_space[od_token]
 
-   def open_file(self,fn, arg_shell_file=False, start=True):
-      'open and record the file pointers'
+   def open_file(self, fn: str, arg_shell_file=False, start=True) -> xed_file_emitter_t:
+      """
+      Open a file and record its file pointer
+      """
 
       fp = xed_file_emitter_t(self.options.xeddir,
                               self.options.gendir,
@@ -5654,8 +5719,11 @@ class generator_common_t(object):
       self.file_pointers.append(fp)
       return fp
 
-   def build_fn(self,tail,header=False):
-      'build and record the file names'
+   def build_file_name(self, tail: str, header=False) -> str:
+      """
+      Build and record a file name
+      """
+
       if True: # MJC2006-10-10
          fn = tail
       else:
@@ -5667,65 +5735,78 @@ class generator_common_t(object):
       return fn
 
    def open_all_files(self):
-      "Open the major output files"
+      """
+      Open all major output files
+      """
+
       msge("Opening output files")
 
       header = True
 
 
-      self.inst_file = self.open_file(self.build_fn(
+      self.inst_file = self.open_file(self.build_file_name(
                                           self.options.inst_init_file))
 
-   def open_new_inst_table_file(self):
+   def open_new_inst_table_file(self) -> xed_file_emitter_t:
+      """
+      Open a new XED instruction table init file
+      """
+
       i = len(self.inst_table_file_names)
       base_fn = 'xed-inst-table-init-'
-      fn = self.build_fn(base_fn + str(i) + ".c")
+      fn = self.build_file_name(base_fn + str(i) + ".c")
       self.inst_table_file_names.append(fn)
       fp = self.open_file(fn)
       return fp
 
 
    def close_output_files(self):
-      "Close the major output files"
+      """
+      Close all major output files
+      """
+
       for f in self.file_pointers:
          f.close()
 
 # $$ generator_info_t
 class generator_info_t(generator_common_t):
-   """All the information that we collect and generate"""
+   """
+   All the information that we collect and generate
+   """
+
    def __init__(self, common):
-      super(generator_info_t,self).__init__()
-      self.common = common
+      super().__init__()
+      self.common: generator_common_t = common
 
       if self.common.options == None:
-         die("Bad init")
-      #old style generator_common_t.__init__(self,generator_common)
-      self.parser_output = None # class parser_t
-      self.graph = None
-      # unique list of iclasses
-      self.iclasses = {}
+          die("Bad init")
+
+      self.parser_output: Optional[parser_t] = None
+      self.graph: Optional[graph_node] = None
+
+      # Unique list of iclasses
+      self.iclasses: dict[str, bool] = {}
 
       # list of tuples of (nonterminal names, max count of how many
       # there are of this one per instruction)
-      self.nonterminals = []
+      self.nonterminals: list[tuple[str, int]] = []
 
-      # list of opnds.operand_info_t's
-      self.operands = None
+      self.operands: Optional[list[opnds.operand_info_t]] = None
 
-      self.storage_class = None
 
-      #For thing that are directly translateable in to tables, we
-      #generate a table here.
-      self.luf_arrays =  []
-      self.marshalling_function = None
+   def nonterminal_name(self) -> str:
+      """
+      The name of this subtree
+      """
 
-   def nonterminal_name(self):
-      """The name of this subtree"""
       s =  self.parser_output.nonterminal_name
       return nonterminal_parens_pattern.sub('', s)
 
    def build_unique_iclass_list(self):
-      "build a unique list of iclasses"
+      """
+      Build a unique list of iclasses
+      """
+
       self.iclasses = {}
       for ii in self.parser_output.instructions:
          if field_check(ii,'iclass'):
@@ -5735,86 +5816,77 @@ class generator_info_t(generator_common_t):
 
 # $$ all_generator_info_t
 class all_generator_info_t(object):
-   """List of generators, each with its own graph"""
+   """
+   list of generators, each with its own graph
+   """
+
    def __init__(self,options):
       #common has mostly input and output files and names
       self.common = generator_common_t()
       self.common.options = options
       self.common.open_all_files()
 
-      self.generator_list = []
-      self.generator_dict = {} # access by NT name
-      self.nonterminal_dict = nonterminal_dict_t()
+      self.generator_list: list[generator_info_t] = []
+      self.generator_dict: dict[str, generator_info_t] = {} # access by NT name
+      self.nonterminal_dict: nonterminal_dict_t = nonterminal_dict_t()
 
-      self.src_files=[]
-      self.hdr_files=[]
+      self.src_files: list[str] = []
+      self.hdr_files: list[str] = []
 
       # list of map_info_rdr.map_info_t describing valid maps for this
       # build.
-      self.map_info = None
-
+      self.map_info: list[map_info_rdr.map_info_t] = []
 
       # enum lists
-      self.operand_types = {} # typename -> True
-      self.operand_widths = {} # width -> True # oc2
-      self.operand_names = {} # name -> Type
-      self.iclasses  = []
-      self.categories = []
-      self.extensions = []
-      self.attributes = []
+      self.operand_types: dict[str, bool] = {} # typename -> True
+      self.operand_widths: dict[str, bool] = {} # width -> True # oc2
+      self.operand_names: dict[str, str] = {} # name -> Type
+      self.iclasses: list[str] = []
+      self.categories: list[str] = []
+      self.extensions: list[str] = []
+      self.attributes: list[str] = []
 
       # for emitting defines with limits
-      self.max_iclass_strings = 0
-      self.max_convert_patterns = 0
-      self.max_decorations_per_operand = 0
+      self.max_iclass_strings: int = 0
+      self.max_convert_patterns: int = 0
+      self.max_decorations_per_operand: int = 0
 
       # this is the iclasses in the order of the enumeration for us in
       # initializing other structures.
-      self.iclasses_enum_order = None
+      self.iclasses_enum_order: Optional[list[str]] = None
 
       # function_object_ts
-      self.itable_init_functions = table_init_object_t('xed-init-inst-table-',
-                                                       'xed_init_inst_table_')
-      self.encode_init_function_objects = []
+      self.itable_init_functions: table_init_object_t = table_init_object_t('xed-init-inst-table-',
+                                                                    'xed_init_inst_table_')
+      self.encode_init_function_objects: list[function_object_t] = []
 
-      # dictionaries of code snippets that map to function names
-      self.extractors = {}
-      self.packers = {}
+      self.operand_storage: Optional[operands_storage_t] = None
 
-      self.operand_storage = None # operand_storage_t
-
-
-      # function_object_t
-      self.overall_lookup_init = None
-
-      # functions called during decode traverals to capture required operands.
-      self.all_node_capture_functions = []
+      self.overall_lookup_init: Optional[function_object_t] = None
 
       # data for instruction table
-      self.inst_fp = None
+      self.inst_fp: Optional[xed_file_emitter_t] = None
 
-      # list of (index, initializer) tuples for all the entire decode graph
-      self.all_decode_graph_nodes=[]
-
-      self.data_table_file=None
-      self.operand_sequence_file=None
+      self.data_table_file: Optional[xed_file_emitter_t] = None
+      self.operand_sequence_file: Optional[xed_file_emitter_t] = None
 
       # set by scan_maps
-      self.max_map_vex = 0
-      self.max_map_evex = 0
+      self.max_map_vex: int = 0
+      self.max_map_evex: int = 0
 
       # dict "iclass:extension" -> ( iclass,extension,
       #                               category, iform_enum, properties-list)
-      self.iform_info = {}
+      self.iform_info: dict[str, tuple[str, str, str, str, list[str], int]] = {}
 
-      self.attributes_dict = {}
-      self.attr_next_pos  = 0
-      self.attributes_ordered  = None
-      self.sorted_attributes_dict = {}
+      self.attributes_dict: dict[str, int] = {}
+      self.attr_next_pos: int  = 0
+      self.attributes_ordered: Optional[list[tuple[int, str]]]  = None
+      self.sorted_attributes_dict: dict[str, int] = {}
+
       # a dict of all the enum names to their values.
       # passed to operand storage in order to calculate
       # the number of required bits
-      self.all_enums = {}
+      self.all_enums: dict[str, list[str]] = {}
 
       # these are xed_file_emitter_t objects
       self.flag_simple_file = self.common.open_file("xed-flags-simple.c", start=False)
@@ -5884,52 +5956,51 @@ class all_generator_info_t(object):
       self.operand_sequence_file.close()
 
 
-   def add_file_name(self,fn,header=False):
-      if type(fn) in [bytes,str]:
-          fns = [fn]
-      elif type(fn) == list:
-          fns = fn
+   def add_file_name(self, file_name, header=False):
+      if type(file_name) in [bytes,str]:
+          file_names = [file_name]
+      elif type(file_name) == list:
+          file_names = file_name
       else:
           die("Need string or list")
 
-      for f in fns:
+      for file in file_names:
           if header:
-             self.hdr_files.append(f)
+             self.hdr_files.append(file)
           else:
-             self.src_files.append(f)
+             self.src_files.append(file)
 
    def dump_generated_files(self):
-       """For mbuild dependence checking, we need an accurate list of the
-          files the generator created. This file is read by xed_mbuild.py"""
+      """
+      For mbuild dependence checking, we need an accurate list of the
+      files the generator created. This file is read by xed_mbuild.py
+      """
 
-       output_file_list = mbuild.join(self.common.options.gendir,
-                                      "DECGEN-OUTPUT-FILES.txt")
-       f = base_open_file(output_file_list,"w")
-       for fn in self.hdr_files + self.src_files:
-           f.write(fn+"\n")
-       f.close()
-
-   def mk_fn(self,fn):
-      if True: #MJC2006-10-10
-         return fn
-      return self.real_mk_fn(fn)
-
-   def real_mk_fn(self,fn):
-      return os.path.join(self.common.options.gendir,fn)
+      output_file_list = mbuild.join(self.common.options.gendir,
+                                    "DECGEN-OUTPUT-FILES.txt")
+      f = base_open_file(output_file_list,"w")
+      for fn in self.hdr_files + self.src_files:
+         f.write(fn+"\n")
+      f.close()
 
    def close_output_files(self):
-      "Close the major output files"
+      """
+      Close the major output files
+      """
+
       self.common.close_output_files()
 
-   def make_generator(self, nt_name):
+   def make_generator(self, nt_name: str) -> generator_info_t:
       g = generator_info_t(self.common)
       self.generator_list.append(g)
       self.generator_dict[nt_name] = g
       return g
 
 
-   def open_file(self, fn, keeper=True, arg_shell_file=False, start=True, private=True):
-      'open and record the file pointers'
+   def open_file(self, fn: str, keeper=True, arg_shell_file=False, start=True, private=True) -> xed_file_emitter_t:
+      """
+      Open `file_name` and record the file pointer
+      """
 
       fp = xed_file_emitter_t(self.common.options.xeddir,
                               self.common.options.gendir,
@@ -5955,8 +6026,11 @@ class all_generator_info_t(object):
 
 
    def code_gen_table_sizes(self):
-      """Write the file that has the declarations of the tables that we
-      fill in in the generator"""
+      """
+      Write the file that has the declarations of the tables that we
+      fill in the generator
+      """
+
       fn = "xed-gen-table-defs.h"
       # we do not put this in a namespace because it is included while
       # in the XED namespace.
@@ -6020,10 +6094,10 @@ class all_generator_info_t(object):
       fi.close()
 
 
-   def handle_prefab_enum(self,enum_fn):
+   def handle_prefab_enum(self, enum_file_name: str) -> list[str]:
       # parse the enum file and get the c and h file names
       gendir = self.common.options.gendir
-      m=metaenum.metaenum_t(enum_fn,gendir)
+      m=metaenum.metaenum_t(enum_file_name,gendir)
       m.run_enumer()
       # remember the c & h file names
       self.add_file_name(m.src_full_file_name)
@@ -6035,13 +6109,17 @@ class all_generator_info_t(object):
 
 
    def handle_prefab_enums(self):
-      """Gather up all the enum.txt files in the datafiles directory"""
+      """
+      Gather all the `enum.txt` files in the `datafiles` directory, and
+      generate the corresponding `.c` and `.h` files.
+      """
+
       prefab_enum_shell_pattern = os.path.join(self.common.options.xeddir,
                                                "datafiles/*enum.txt")
       prefab_enum_files = glob.glob( prefab_enum_shell_pattern )
-      for fn in prefab_enum_files:
-         msge("PREFAB-ENUM: " + fn)
-         self.handle_prefab_enum( fn )
+      for file_name in prefab_enum_files:
+         msge("PREFAB-ENUM: " + file_name)
+         self.handle_prefab_enum( file_name )
 
    def extend_operand_names_with_input_states(self):
       type ='xed_uint32_t'
@@ -6427,72 +6505,74 @@ def call_chipmodel(agi):
         agi.add_file_name(f,is_header(f))
 
 ################################################
-def read_cpuid_mappings(fn):
-    return cpuid_rdr.read_file(fn)
+def make_cpuid_mappings(agi,fn):
+    """
+    Make CPUID C tables and headers
 
-def make_cpuid_mappings(agi,mappings):
+    Args:
+        agi (all_generator_info_t): All generator info
+        fn (str): cpuid input file name
+    """
+    isaset_cpuid_map : cpuid_rdr.isaset_cpuid_map_t = cpuid_rdr.read_file(fn)
+    cpuid_recs : cpuid_rdr.cpuid_rec_info_map_t = cpuid_rdr.make_cpuid_rec_info_map(isaset_cpuid_map)
+    cpuid_grps : cpuid_rdr.cpuid_group_info_map_t = cpuid_rdr.make_cpuid_group_info_map(isaset_cpuid_map)
+    cpuid_rec_string_names = sorted(cpuid_recs.keys())
+    cpuid_group_string_names = sorted(cpuid_grps.keys())
 
-    # 'mappings' is a dict of isa_set -> list of cpuid_bit_names
+    ### CPUID Record Enum ##
+    # Move INVALID to 0th element:
+    p = cpuid_rec_string_names.index('INVALID')
+    del cpuid_rec_string_names[p]
+    cpuid_rec_string_names = ['INVALID'] + cpuid_rec_string_names
 
-    # collect all unique list of cpuid bit names
-    cpuid_bits = {}
-    for vlist in mappings.values():
-        for bit in vlist:
-            if bit == 'N/A':
-                data = bitname = 'INVALID'
-            else:
-                try:
-                    bitname,orgdata = bit.split('.',1)
-                    data = re.sub('[.]','_',orgdata)
-                except:
-                    die("splitting problem with {}".format(bit))
-                if bitname in cpuid_bits:
-                    if cpuid_bits[bitname] != data:
-                        die("Mismatch on cpuid bit specification for bit {}: {} vs {}".format(
-                            bitname, cpuid_bits[bitname], data))
-            cpuid_bits[bitname]=data
-
-
-    cpuid_bit_string_names = sorted(cpuid_bits.keys())
-
-    # move INVALID to 0th element:
-    p = cpuid_bit_string_names.index('INVALID')
-    del cpuid_bit_string_names[p]
-    cpuid_bit_string_names = ['INVALID'] + cpuid_bit_string_names
-
-    # emit enum for cpuid bit names
-    cpuid_bit_enum =  enum_txt_writer.enum_info_t(cpuid_bit_string_names,
+    # Emit enum for cpuid rec names
+    cpuid_rec_enum =  enum_txt_writer.enum_info_t(cpuid_rec_string_names,
                                                   agi.common.options.xeddir,
                                                   agi.common.options.gendir,
-                                                  'xed-cpuid-bit',
-                                                  'xed_cpuid_bit_enum_t',
-                                                  'XED_CPUID_BIT_',
+                                                  'xed-cpuid-rec',
+                                                  'xed_cpuid_rec_enum_t',
+                                                  'XED_CPUID_REC_',
                                                   cplusplus=False)
-    cpuid_bit_enum.print_enum()
-    cpuid_bit_enum.run_enumer()
-    agi.add_file_name(cpuid_bit_enum.src_full_file_name)
-    agi.add_file_name(cpuid_bit_enum.hdr_full_file_name,header=True)
+    cpuid_rec_enum.print_enum()
+    cpuid_rec_enum.run_enumer()
+    agi.add_file_name(cpuid_rec_enum.src_full_file_name)
+    agi.add_file_name(cpuid_rec_enum.hdr_full_file_name,header=True)
+
+    ### CPUID Group Enum ##
+    # Move INVALID to 0th element:
+    p = cpuid_group_string_names.index('INVALID')
+    del cpuid_group_string_names[p]
+    cpuid_group_string_names = ['INVALID'] + cpuid_group_string_names
+
+    # Emit enum for cpuid group names
+    cpuid_grp_enum =  enum_txt_writer.enum_info_t(cpuid_group_string_names,
+                                                  agi.common.options.xeddir,
+                                                  agi.common.options.gendir,
+                                                  'xed-cpuid-group',
+                                                  'xed_cpuid_group_enum_t',
+                                                  'XED_CPUID_GROUP_',
+                                                  cplusplus=False)
+    cpuid_grp_enum.print_enum()
+    cpuid_grp_enum.run_enumer()
+    agi.add_file_name(cpuid_grp_enum.src_full_file_name)
+    agi.add_file_name(cpuid_grp_enum.hdr_full_file_name,header=True)
 
     fp = agi.open_file('xed-cpuid-tables.c')
 
     fp.add_code('const xed_cpuid_rec_t xed_cpuid_info[] = {')
     # emit initialized structure mapping cpuid enum values to descriptive structures
-    for bitname in cpuid_bit_string_names:
-        cpuid_bit_data = cpuid_bits[bitname]
-        if bitname == 'INVALID':
-            leaf = subleaf = bit  = 0
-            reg = 'INVALID'
-        else:
-            (leaf,subleaf,reg,bit) = cpuid_bit_data.split('_')
+    for recname in cpuid_rec_string_names:
+        data : cpuid_rdr.cpuid_record_t = cpuid_recs[recname]
 
-        s = "/* {:18s} */ {{ 0x{}, {}, {}, XED_REG_{} }},".format(
-            bitname, leaf,subleaf, bit, reg)
+        s = "/* {:18s} */ {{ 0x{}, {}, XED_REG_{}, {}, {}, {} }},".format(
+            recname, data.leaf, data.s_leaf, data.reg, data.bit_start,
+            data.bit_end, data.value)
         fp.add_code(s)
     fp.add_code('};')
 
     # check that each isa set in the cpuid files has a corresponding XED_ISA_SET_ value
     fail = False
-    for cisa in mappings.keys():
+    for cisa in isaset_cpuid_map.keys():
         t = re.sub('XED_ISA_SET_','',cisa)
         if t not in agi.all_enums['xed_isa_set_enum_t']:
             fail = True
@@ -6500,27 +6580,38 @@ def make_cpuid_mappings(agi,mappings):
     if fail:
         die("Found bad isa_sets in cpuid input files.")
 
-
-
-
-    # emit initialized structure of isa-set mapping to array of cpuid bit string enum.
+    # emit initialized structure of cpuid group mapping to array of cpuid rec string enum.
     n = 4
-    fp.add_code('const xed_cpuid_bit_enum_t xed_isa_set_to_cpuid_mapping[][XED_MAX_CPUID_BITS_PER_ISA_SET] = {')
+    fp.add_code('const xed_cpuid_rec_enum_t xed_cpuid_group_to_rec_mapping[][XED_MAX_CPUID_RECS_PER_GROUP] = {')
+    for group_name in cpuid_group_string_names:
+        print("CPUID Group: ", group_name)
+        raw = n*['XED_CPUID_REC_INVALID']
+        if group_name in cpuid_grps:
+            group: cpuid_rdr.group_record_t = cpuid_grps[group_name]
+            for i, rec in enumerate(group.get_records()):
+                rec_symbolic_name = rec.fname
+                if i >= n:
+                    die("Make XED_MAX_CPUID_RECS_PER_GROUP bigger")
+                raw[i] = 'XED_CPUID_REC_' + rec_symbolic_name
+        recs = ", ".join(raw)
+        s = '/* {} */ {{ {}  }} ,'.format(group_name, recs)
+        fp.add_code(s)
+    fp.add_code('};')
 
+    # emit initialized structure of isa-set mapping to array of cpuid group string enum.
+    n = 2
+    fp.add_code('const xed_cpuid_group_enum_t xed_isa_set_to_cpuid_group_mapping[][XED_MAX_CPUID_GROUPS_PER_ISA_SET] = {')
     for isaset in agi.all_enums['xed_isa_set_enum_t']:
         print("ISASET: ", isaset)
         x = 'XED_ISA_SET_' + isaset
-        raw = n*['XED_CPUID_BIT_INVALID']
-        if x in mappings:
-            for i,v in enumerate(mappings[x]):
-                if v == 'N/A':
-                    bit_symbolic_name = 'INVALID'
-                else:
-                    (bit_symbolic_name,leaf,subleaf,reg,bit) = v.split('.')
+        raw = n*['XED_CPUID_GROUP_INVALID']
+        if x in isaset_cpuid_map:
+            for i,v in enumerate(isaset_cpuid_map[x]):
+                grp_symbolic_name = v.get_name()
 
                 if i >= n:
-                    die("Make XED_MAX_CPUID_BITS_PER_ISA_SET bigger")
-                raw[i] = 'XED_CPUID_BIT_' + bit_symbolic_name
+                    die("Make XED_MAX_CPUID_GROUPS_PER_ISA_SET bigger")
+                raw[i] = 'XED_CPUID_GROUP_' + grp_symbolic_name
         bits = ", ".join(raw)
         s = '/* {} */ {{ {}  }} ,'.format(isaset, bits)
         fp.add_code(s)
@@ -6531,8 +6622,7 @@ def gen_cpuid_map(agi):
     fn = agi.common.options.cpuid_input_fn
     if fn:
         if os.path.exists(fn):
-            mappings = read_cpuid_mappings(fn)
-            make_cpuid_mappings(agi, mappings)
+            make_cpuid_mappings(agi, fn)
             return
     die("Could not read cpuid input file: {}".format(str(fn)))
 

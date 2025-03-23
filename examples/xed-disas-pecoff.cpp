@@ -1,6 +1,6 @@
-/*BEGIN_LEGAL
+/* BEGIN_LEGAL 
 
-Copyright (c) 2019 Intel Corporation
+Copyright (c) 2023 Intel Corporation
 
   Licensed under the Apache License, Version 2.0 (the "License");
   you may not use this file except in compliance with the License.
@@ -350,6 +350,10 @@ public:
     // There are section names that LOOK like .text$x but they really have
     // a null string embedded in them. So when you strcmp, you hit the
     // null.
+    
+    // upper bound on possibly tainted variable - modern versions of the Windows os have relaxed the limitation of max 96 sections, 
+    // and can handle PE files with more than 96 sections. But a good practice is to avoid excessive numbers of sections
+    assert(nsections <= 200);  
 
 
     for ( ii = section_index; ii < nsections; ii++, hdr++)

@@ -1,6 +1,6 @@
 #BEGIN_LEGAL
 #
-#Copyright (c) 2019 Intel Corporation
+#Copyright (c) 2024 Intel Corporation
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -21,6 +21,12 @@
 # time and I had to put the new instructions on some chip so I made
 # somethign up. 
 
-FUTURE:                    \
-   ALL_OF(GRANITE_RAPIDS)  \
-   TDX
+FUTURE:                         \
+    ALL_OF(DIAMOND_RAPIDS)      \
+    ALL_OF(PANTHER_LAKE)        \
+    ALL_OF(CLEARWATER_FOREST)   \
+    PBNDKB                      \
+    RAO_INT                     \
+    APX_F_RAO_INT               \
+    APX_F_MSR_IMM               
+    #################################

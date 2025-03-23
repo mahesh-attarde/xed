@@ -2,7 +2,7 @@
 # -*- python -*-
 #BEGIN_LEGAL
 #
-#Copyright (c) 2019 Intel Corporation
+#Copyright (c) 2024 Intel Corporation
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -66,7 +66,7 @@ def read_db(args):
                                      args.map_descriptions)
     return xeddb
 
-def read_chips(args):
+def read_chips(args) -> tuple[list[str], dict[str,str]]:
     chips, chip_db = chipmodel.read_database(args.chip_filename)
     return chips, chip_db
     

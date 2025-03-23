@@ -1,6 +1,6 @@
-/*BEGIN_LEGAL 
+/* BEGIN_LEGAL 
 
-Copyright (c) 2019 Intel Corporation
+Copyright (c) 2023 Intel Corporation
 
   Licensed under the Apache License, Version 2.0 (the "License");
   you may not use this file except in compliance with the License.
@@ -118,7 +118,7 @@ static void delete_slist_t(slist_t* s) {
     }
 }
 
-static slist_t* get_slist_node() {
+static slist_t* get_slist_node(void) {
     slist_t* node = (slist_t*)malloc(sizeof(slist_t));
     assert(node != 0);
     node->s = 0;
@@ -178,7 +178,7 @@ void asp_delete_xed_enc_line_parsed_t(xed_enc_line_parsed_t* v) {
     free(v);
 }
 
-static opnd_list_t* get_opnd_list_node() {
+static opnd_list_t* get_opnd_list_node(void) {
     opnd_list_t* p  = (opnd_list_t*)malloc(sizeof(opnd_list_t));
     assert(p != 0);
     memset(p, 0, sizeof(opnd_list_t));
@@ -1023,22 +1023,21 @@ void asp_parse_line(xed_enc_line_parsed_t* v)
             p++; continue;
         }
         if (prefixes==0) {
-            grab_prefixes(&p,v);
+            grab_prefixes(&p,v);    // p is incremented here
             study_prefixes(v);
             prefixes = 1;
             continue;
         }
         if (inst==0) {
-            grab_inst(&p,v);
+            grab_inst(&p,v);        // p is incremented here
             inst = 1;
             continue;
         }
         if (inst==1) { // grab operands
-            grab_operand(&p, v);
+            grab_operand(&p, v);    // p is incremented here
             continue;
         }
         
-        p++;
     }
 
     refine_operands(v);
@@ -1082,6 +1081,7 @@ void asp_print_parsed_line(xed_enc_line_parsed_t* v) {
         case OPND_INVALID: asp_printf("INVALID  "); break;
         case OPND_MEM: 
             asp_printf("MEM  "); break;
+            /* Detailed description:
             asp_printf("%d %s [%s:%s + %s*%s %s %s] ",
                 q->mem.len,
                 (q->mem.mem_size ? q->mem.mem_size : "n/a"),
@@ -1091,7 +1091,7 @@ void asp_print_parsed_line(xed_enc_line_parsed_t* v) {
                 q->mem.scale,
                 (q->mem.minus ? "-" : "+"),
                 (q->mem.disp ? q->mem.disp : "n/a"));
-            break;
+            break;*/
         case OPND_FARPTR:
             asp_printf("FAR PTR %s:%s", q->farptr.seg, q->farptr.offset);
             break;

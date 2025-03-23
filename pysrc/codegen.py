@@ -3,7 +3,7 @@
 # Code generation support: emitting files, emitting functions, etc.
 #BEGIN_LEGAL
 #
-#Copyright (c) 2019 Intel Corporation
+#Copyright (c) 2024 Intel Corporation
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -23,19 +23,11 @@ import sys
 import os
 import re
 import glob
+import datetime
 
 from genutil import *
-def find_dir(d):
-    directory = os.getcwd()
-    last = ''
-    while directory != last:
-        target_directory = os.path.join(directory,d)
-        if os.path.exists(target_directory):
-            return target_directory
-        last = directory
-        directory = os.path.split(directory)[0]
-    return None
-sys.path.append(find_dir('mbuild'))
+
+add_mbuild_to_path()
 try:
    import mbuild
 except:
@@ -256,8 +248,11 @@ class xed_file_emitter_t(file_emitter_t):
       self.emit_header(full_header)
       ip_header_file_name = mbuild.join(self.xeddir,
                                         'misc',
-                                        'apache-header.txt')
+                                        'legal-header.txt')
+      curr_year = datetime.date.today().strftime("%Y")
       for line in self.emit_ip_header(ip_header_file_name):
+         if "<CURRENT_YEAR>" in line:
+            line = line.replace("<CURRENT_YEAR>", curr_year)
          self.emit(line)
       if not self.shell_file:
          self.system_headers_emit()
@@ -950,8 +945,9 @@ class array_gen_t(object):
             if check_bounds:
                 # FIXME: if the range type is unsigned, and the lower
                 # bound is zero, then we need not check it. But it is
-                # hard to tell from here with an arbitrary type. ICL
-                # complains about this, warning/error #186.
+                # hard to tell from here with an arbitrary type.
+                # ICL complains about this, warning/error #186.
+                # GCC complains about this, -Werror=type-limits
                 fo.add_code_eol('xed_assert(arg_'+ argname + '>=' + lower_bound +
                                 ' && arg_' + argname + '<' + upper_bound + ')')
 
