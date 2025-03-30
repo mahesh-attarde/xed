@@ -440,7 +440,7 @@ def generateXMLFile(agi):
             continue
          if ii.iclass == 'SYSRET' and any(op for op in ii.operands if op.bits == 'XED_REG_EIP'):
             continue
-         if 'APX' in ii.extension or 'APX' in ii.isa_set or 'AVX10' in ii.isa_set or ii.extension == 'FRED':
+         if 'APX' in ii.extension or 'APX' in ii.isa_set or 'AVX10' in ii.isa_set:
             # ToDo
             continue
          if ('AVX512_SAT' in ii.isa_set or 'SM4' in ii.isa_set or 'AVX512_VNNI_INT' in ii.isa_set or 'AVX512_VNNI_FP' in ii.isa_set or 'AVX512_M' in ii.isa_set
@@ -548,6 +548,8 @@ def generateXMLFile(agi):
                               if eosz == 1:
                                  if ii.iclass in ['BSWAP']:
                                     # "When the BSWAP instruction references a 16-bit register, the result is undefined." (Instruction set reference)
+                                    continue
+                                 if ii.extension in ['FRED']:
                                     continue
                                  if ii.iclass in ['MOVSX', 'MOVZX'] and ('GPR16' in ii.iform_enum or 'MEMw' in ii.iform_enum):
                                     # not documented in the manual
