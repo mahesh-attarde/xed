@@ -385,9 +385,9 @@ def getInstrString(XMLInstr, stringSuffix):
 
 
 def getMemoryPrefix(width, ii):
-   if ii.category in ['GATHER', 'AVX2GATHER', 'SCATTER'] or ii.iclass in ['LAR', 'LSL', 'INVPCID', 'CALL_FAR', 'JMP_FAR', 'RET_FAR', 'LWPVAL', 'LWPINS',
-                                                                          'WRSSD', 'WRSSQ', 'WRUSSD', 'WRUSSQ', 'VPOPCNTD', 'MOVDIR64B', 'MOVDIRI',
-                                                                          'PCMPESTRI64', 'PCMPESTRM64', 'VPCMPESTRI64', 'VPCMPESTRM64']:
+   if ii.category in ['GATHER', 'AVX2GATHER', 'ENQCMD', 'KEYLOCKER', 'KEYLOCKER_WIDE', 'SCATTER'] or ii.iclass in ['LAR', 'LSL', 'INVPCID', 'CALL_FAR',
+         'JMP_FAR', 'RET_FAR', 'LWPVAL', 'LWPINS', 'WRSSD', 'WRSSQ', 'WRUSSD', 'WRUSSQ', 'VPOPCNTD', 'MOVDIR64B', 'MOVDIRI', 'PCMPESTRI64', 'PCMPESTRM64',
+         'VPCMPESTRI64', 'VPCMPESTRM64', 'LDTILECFG', 'STTILECFG']:
       return None
    elif width == '8':
       return 'byte ptr'
@@ -440,12 +440,7 @@ def generateXMLFile(agi):
             continue
          if ii.iclass == 'SYSRET' and any(op for op in ii.operands if op.bits == 'XED_REG_EIP'):
             continue
-         if 'APX' in ii.extension or 'APX' in ii.isa_set or 'AVX10' in ii.isa_set:
-            # ToDo
-            continue
-         if ('AVX512_SAT' in ii.isa_set or 'SM4' in ii.isa_set or 'AVX512_VNNI_INT' in ii.isa_set or 'AVX512_VNNI_FP' in ii.isa_set or 'AVX512_M' in ii.isa_set
-               or 'AVX512_N' in ii.isa_set or 'AVX512_FP16_CONVERT' in ii.isa_set or 'AVX512_COM_EF_SCALAR' in ii.isa_set or 'AVX512_BF16_N' in ii.isa_set
-               or ii.isa_set in ['AMX_AVX512']):
+         if 'APX' in ii.extension or 'APX' in ii.isa_set:
             # ToDo
             continue
          allInstructions.append(ii)

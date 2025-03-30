@@ -8,9 +8,9 @@ def main():
    print('.intel_syntax noprefix')
    for instrNode in root.iter('instruction'):
       # Future instruction set extensions
-      if instrNode.attrib['extension'] in ['AMD_INVLPGB', 'AMX_TILE', 'ENQCMD', 'ICACHE_PREFETCH', 'KEYLOCKER', 'KEYLOCKER_WIDE']:
+      if instrNode.attrib['extension'] in ['AMD_INVLPGB', 'ICACHE_PREFETCH']:
          continue
-      if any(x in instrNode.attrib['isa-set'] for x in ['FP16']):
+      if instrNode.attrib['isa-set'] in ['AVX10_2_RC_256']:
          continue
 
       # Deprecated instruction set extensions
