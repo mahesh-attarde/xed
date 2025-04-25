@@ -635,18 +635,20 @@ def generateXMLFile(agi):
                                  XMLInstr.attrib['asm'] = '{vex} ' + XMLInstr.attrib['asm']
                                  stringSuffix += '_VEX'
 
-                              if (ii.iclass != 'NOP') and any(x in ii.iform_enum for x in ['GPRv_GPRv_', 'GPR8_GPR8_', 'MMXq_MMXq_0', 'XMMss_XMMss_0',
-                                                               'XMMps_XMMps_0', 'VMOVQ_XMMdq_XMMq_', 'XMMdq_XMMdq_XMMq_1', 'XMMsd_XMMsd_0', 'XMMdq_XMMdq_XMMd_1',
-                                                               '_XMMdq_XMMdq_2', '_XMMdq_XMMq_0', 'XMMdq_XMMdq_1', 'YMMqq_YMMqq_1', '_YMMqq_YMMqq_2',
-                                                               'XMMdq_XMMdq_0', '_XMMpd_XMMpd_0', 'VMOVDQA_XMMdq_XMMdq_', 'VMOVDQA_YMMqq_YMMqq',
-                                                               'VMOVDQU_XMMdq_XMMdq_', 'VMOVDQU_YMMqq_YMMqq_']):
-                                 iformPrefix = ii.iform_enum[0:ii.iform_enum.rfind('_')]
-                                 otherIform = next(x.iform_enum for x in allInstructions if x.iform_enum.startswith(iformPrefix) and not x.iform_enum == ii.iform_enum)
-                                 if ii.iform_enum < otherIform:
-                                    XMLInstr.attrib['asm'] = '{load} ' + XMLInstr.attrib['asm']
-                                 else:
-                                    XMLInstr.attrib['asm'] = '{store} ' + XMLInstr.attrib['asm']
-                                 stringSuffix += ii.iform_enum[ii.iform_enum.rfind('_'):]
+                              for ii2 in iclassDict[ii.iclass]:
+                                 if ii == ii2 or ii.iform_enum in ['BNDMOV_BND_BND']: continue
+                                 ops = [op.lookupfn_name for op in ii.operands if 'REG' in op.name and (op.lookupfn_name or '').endswith(('_B', '_R'))]
+                                 ops2 = [op.lookupfn_name for op in ii2.operands if 'REG' in op.name and (op.lookupfn_name or '').endswith(('_B', '_R'))]
+
+                                 if len(ops) == 2 and (ops[0][:-1] == ops[1][:-1]) and ops == list(reversed(ops2)):
+                                    opcode = ''.join(x[2:] for x in ii.ipattern_input.split() if '0x' in x)
+                                    opcode2 = ''.join(x[2:] for x in ii2.ipattern_input.split() if '0x' in x)
+                                    if opcode < opcode2:
+                                       XMLInstr.attrib['asm'] = '{load} ' + XMLInstr.attrib['asm']
+                                    else:
+                                       XMLInstr.attrib['asm'] = '{store} ' + XMLInstr.attrib['asm']
+                                    stringSuffix += f'_{opcode}'
+                                    break
 
                               lockSet = findPossibleValuesForToken(ii.ipattern.bits, 'LOCK', state_space, agi)
                               if lockSet == {1}:
