@@ -419,14 +419,12 @@ def generateXMLFile(agi):
       for ii in gi.parser_output.instructions:
          if not field_check(ii,'iclass'):
             break
-         if ii.comment and 'UNDOC' in ii.comment and not ii.iform_enum in ['FCOM_ST0_X87', 'FSTP_X87_ST0'] and not ii.iclass in ['LOOPE', 'LOOPNE']:
+         if ii.attributes and 'UNDOCUMENTED' in ii.attributes and not ii.iclass in ['LOOPE', 'LOOPNE']:
             continue
          if ii.iclass in ['UD0', 'UD1', 'PREFETCH_RESERVED', 'PCMPISTRI64', 'VPCMPISTRI64']:
             # no information in the manual on these instructions
             continue
-         if ii.iform_enum in ['SHL_MEMb_IMMb_C0r6', 'SHL_GPR8_IMMb_C0r6', 'SHL_MEMv_IMMb_C1r6', 'SHL_GPRv_IMMb_C1r6', 'SHL_MEMb_ONE_D0r6', 'SHL_GPR8_ONE_D0r6',
-                              'SHL_GPRv_ONE_D1r6', 'SHL_MEMv_ONE_D1r6', 'SHL_MEMb_CL_D2r6', 'SHL_GPR8_CL_D2r6', 'SHL_MEMv_CL_D3r6', 'TEST_MEMb_IMMb_F6r1',
-                              'SHL_GPRv_CL_D3r6', 'TEST_GPR8_IMMb_F6r1', 'TEST_MEMv_IMMz_F7r1', 'TEST_GPRv_IMMz_F7r1', 'PREFETCHW_0F0Dr3']:
+         if ii.iform_enum in ['PREFETCHW_0F0Dr3']:
             # no information in the manual on these encodings
             continue
          if ii.iclass == 'NOP' and any(p in ii.iform_enum for p in ['0F0D', '0F18', '0F19', '0F1A', '0F1B', '0F1C', '0F1D', '0F1E']):
@@ -435,7 +433,8 @@ def generateXMLFile(agi):
          if (ii.iform_enum in ['ENCLV', 'INT1', 'MOVQ_XMMdq_MEMq_0F6E', 'MOVQ_MEMq_XMMq_0F7E', 'MOVQ_MMXq_MEMq_0F6E', 'MOVQ_MEMq_MMXq_0F7E',
                                'VMOVQ_XMMdq_MEMq_6E', 'VMOVQ_MEMq_XMMq_7E', 'VPEXTRW_GPR32d_XMMdq_IMMb_15', 'PUSH_GPRv_FFr6', 'MOV_GPR8_IMMb_C6r0',
                                'POP_GPRv_8F', 'PEXTRW_SSE4_GPR32_XMMdq_IMMb']
-                               or (ii.iform_enum == 'VPEXTRW_GPR32u16_XMMu16_IMM8_AVX512' and ii.iclass == 'VPEXTRW')):
+                               or (ii.iform_enum == 'VPEXTRW_GPR32u16_XMMu16_IMM8_AVX512' and ii.iclass == 'VPEXTRW')
+                               or (ii.iclass in 'SHL' and 'REG[0b110]' in ii.ipattern_input)):
             # there is no assembler code to emit these encodings
             continue
          if ii.iclass == 'SYSRET' and any(op for op in ii.operands if op.bits == 'XED_REG_EIP'):
