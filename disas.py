@@ -15,7 +15,7 @@ def main():
    parser.add_argument('-iacaMarkers', help='Use IACA markers', action='store_true')
    args = parser.parse_args()
 
-   disas = xed.disasFile(args.filename, useIACAMarkers=args.iacaMarkers)
+   disas = xed.disasFile(args.filename, useIACAMarkers=args.iacaMarkers, chip='ALL')
 
    root = ET.parse(args.xmlfile)
 
