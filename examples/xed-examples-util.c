@@ -1877,8 +1877,29 @@ static PyObject* matchXMLAttributes(PyObject* self, PyObject *args) {
 
     PyObject* disasRm = PyDict_GetItemString(disasDict, "rm");
     PyObject* xmlRm = PyDict_GetItemString(xmlDict, "rm");
-
     if (disasRm && xmlRm && !PyUnicode_Contains(xmlRm, disasRm)) {
+        Py_RETURN_FALSE;
+    }
+
+    long posNominalOpcode = PyLong_AsLong(PyDict_GetItemString(disasDict, "pos_nominal_opcode"));
+    PyObject* nominalOpcodeDisasStr = PyUnicode_Substring(PyDict_GetItemString(disasDict, "opcode"), posNominalOpcode * 2, (posNominalOpcode * 2) + 2);
+    PyObject* nominalOpcodeDisasLong = PyLong_FromUnicodeObject(nominalOpcodeDisasStr, 16);
+    long nominalOpcodeDisas = PyLong_AsLong(nominalOpcodeDisasLong);
+    Py_DECREF(nominalOpcodeDisasStr);
+    Py_DECREF(nominalOpcodeDisasLong);
+    PyObject* xmlOpcode = PyDict_GetItemString(xmlDict, "opcode");
+    Py_ssize_t l = PyUnicode_GetLength(xmlOpcode);
+    PyObject* nominalOpcodeXMLStr = PyUnicode_Substring(xmlOpcode, l-2, l);
+    PyObject* nominalOpcodeXMLLong = PyLong_FromUnicodeObject(nominalOpcodeXMLStr, 16);
+    long nominalOpcodeXML = PyLong_AsLong(nominalOpcodeXMLLong);
+    Py_DECREF(nominalOpcodeXMLStr);
+    Py_DECREF(nominalOpcodeXMLLong);
+    PyObject* incompleteOpcode = PyDict_GetItemString(xmlDict, "incomplete_opcode");
+    if (incompleteOpcode && !PyUnicode_CompareWithASCIIString(incompleteOpcode, "1")) {
+        long srm = PyLong_AsLong(PyDict_GetItemString(disasDict, "srm"));
+        nominalOpcodeDisas -= srm;
+    }
+    if (nominalOpcodeDisas != nominalOpcodeXML) {
         Py_RETURN_FALSE;
     }
 
@@ -1961,6 +1982,7 @@ static void add_instr_to_pyList(xed_disas_info_t* di, xed_decoded_inst_t* xedd, 
     add_str_entry(pyDict, "opcode", opcode);
     add_longlong_entry(pyDict, "pos_nominal_opcode", xed3_operand_get_pos_nominal_opcode(xedd));
     add_longlong_entry(pyDict, "addr", runtime_instruction_address);
+    add_longlong_entry(pyDict, "srm", xed3_operand_get_srm(xedd));
     add_str_entry(pyDict, "iclass", xed_iclass_enum_t2str(xed_decoded_inst_get_iclass(xedd)));
     add_str_entry(pyDict, "iform", xed_iform_enum_t2str(xed_decoded_inst_get_iform_enum(xedd)));
     add_str_entry(pyDict, "category", xed_category_enum_t2str(xed_decoded_inst_get_category(xedd)));

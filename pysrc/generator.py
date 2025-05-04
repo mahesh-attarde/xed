@@ -409,6 +409,17 @@ def getMemoryPrefix(width, ii):
       return None
 
 
+def getOpcode(ii):
+   opcode = ''
+   for p in ii.ipattern_input.split():
+      if p.startswith('0x'):
+         opcode += p[2:]
+      elif p.startswith('0b'):
+         opcode += f'{int(p.ljust(11, "0"), 2):X}'
+   assert(1 <= len(opcode)/2 <= 3)
+   return opcode
+
+
 def generateXMLFile(agi):
    widths_list_dict = {}
    for w in agi.widths_list:
@@ -634,15 +645,18 @@ def generateXMLFile(agi):
                                  XMLInstr.attrib['asm'] = '{vex} ' + XMLInstr.attrib['asm']
                                  stringSuffix += '_VEX'
 
+                              opcode = getOpcode(ii)
+                              XMLInstr.attrib['opcode'] = opcode
+                              if 'SRM[rrr]' in ii.ipattern_input:
+                                 XMLInstr.attrib['incomplete_opcode'] = '1'
+
                               for ii2 in iclassDict[ii.iclass]:
                                  if ii == ii2 or ii.iform_enum in ['BNDMOV_BND_BND']: continue
                                  ops = [op.lookupfn_name for op in ii.operands if 'REG' in op.name and (op.lookupfn_name or '').endswith(('_B', '_R'))]
                                  ops2 = [op.lookupfn_name for op in ii2.operands if 'REG' in op.name and (op.lookupfn_name or '').endswith(('_B', '_R'))]
 
                                  if len(ops) == 2 and (ops[0][:-1] == ops[1][:-1]) and ops == list(reversed(ops2)):
-                                    opcode = ''.join(x[2:] for x in ii.ipattern_input.split() if '0x' in x)
-                                    opcode2 = ''.join(x[2:] for x in ii2.ipattern_input.split() if '0x' in x)
-                                    if opcode < opcode2:
+                                    if opcode < getOpcode(ii2):
                                        XMLInstr.attrib['asm'] = '{load} ' + XMLInstr.attrib['asm']
                                     else:
                                        XMLInstr.attrib['asm'] = '{store} ' + XMLInstr.attrib['asm']
