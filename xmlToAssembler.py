@@ -78,7 +78,7 @@ def main():
             else:
                imm = (1 << (width-8)) + 1
             asm += str(imm)
-         elif operandNode.attrib['type'] == 'relbr':
+         elif operandNode.attrib['type'] in ['absbr', 'relbr']:
             asm = '1: ' + asm + '1b'
 
       if not 'sae' in asm:

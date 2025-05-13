@@ -1743,7 +1743,7 @@ void xed_print_intel_asm_emit(const xed_uint8_t* array, unsigned int olen) {
 
 /////////////////////////////////////
 
-void get_cpuid(xed_uint32_t leaf, xed_uint32_t subleaf, 
+void get_cpuid(xed_uint32_t leaf, xed_uint32_t subleaf,
                xed_uint32_t* eax, xed_uint32_t* ebx, xed_uint32_t* ecx, xed_uint32_t* edx) {
 #if defined(XED_MAC) || defined(XED_LINUX) || defined(XED_BSD)
     __cpuid_count(leaf, subleaf, eax, ebx, ecx, edx);
@@ -1869,6 +1869,7 @@ static PyObject* matchXMLAttributes(PyObject* self, PyObject *args) {
             || dict_str_values_differ(disasDict, xmlDict, "iform")
             || dict_str_values_differ(disasDict, xmlDict, "immzero")
             || dict_str_values_differ(disasDict, xmlDict, "mask")
+            || dict_str_values_differ(disasDict, xmlDict, "nf")
             || dict_str_values_differ(disasDict, xmlDict, "rep")
             || dict_str_values_differ(disasDict, xmlDict, "sae")
             || dict_str_values_differ(disasDict, xmlDict, "zeroing")) {
@@ -1997,7 +1998,7 @@ static void add_instr_to_pyList(xed_disas_info_t* di, xed_decoded_inst_t* xedd, 
     add_uint_as_str_entry(pyDict, "bcast", xed3_operand_get_bcast(xedd));
     add_uint_as_str_entry(pyDict, "eosz", xed3_operand_get_eosz(xedd));
     add_uint_as_str_entry(pyDict, "mask", xed3_operand_get_mask(xedd) ? 1 : 0);
-
+    add_uint_as_str_entry(pyDict, "nf", xed3_operand_get_nf(xedd));
     add_uint_as_str_entry(pyDict, "prefix66", xed_operand_values_has_66_prefix(xedd));
     add_uint_as_str_entry(pyDict, "rep", xed3_operand_get_rep(xedd));
     add_uint_as_str_entry(pyDict, "rm", xed3_operand_get_rm(xedd));

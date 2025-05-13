@@ -135,7 +135,7 @@ def isInconsistent(bit, token, value):
    return False
 
 
-def getAllRegisterNamesForOperand(operand, agi, mask, multireg, EOSZ=None, rex=None, highLow=None, rmBits=None):
+def getAllRegisterNamesForOperand(operand, agi, mask, multireg, EOSZ=None, rex=None, highLow=None, rmBits=None, vexvalid=0, apx=False):
    if operand.type == 'nt_lookup_fn':
       o = operand.lookupfn_name
       returnList = []
@@ -143,7 +143,7 @@ def getAllRegisterNamesForOperand(operand, agi, mask, multireg, EOSZ=None, rex=N
          admissibleRule = True
          rexFound = False
          for b in rule.ipattern.bits:
-            if isInconsistent(b, 'MODE', 2) or isInconsistent(b, 'EASZ', 3):
+            if isInconsistent(b, 'MODE', 2) or isInconsistent(b, 'SMODE', 2) or isInconsistent(b, 'EASZ', 3):
                admissibleRule = False
                break
             if isInconsistent(b, 'EOSZ', EOSZ):
@@ -154,16 +154,16 @@ def getAllRegisterNamesForOperand(operand, agi, mask, multireg, EOSZ=None, rex=N
             if (rmBits is not None) and all(isInconsistent(b, 'RM', rb) for rb in rmBits):
                admissibleRule = False
                break
-            if (isInconsistent(b, 'REX2', 0)):
-               # ToDo
+            if isInconsistent(b, 'REX2', 0):
                admissibleRule = False
                break
-            if 'GPR' in o and (isInconsistent(b, 'REXB4', 0) or isInconsistent(b, 'REXR4', 0)):
-               # ToDo
+            if (not apx) and any(op.name == 'HAS_EGPR' for op in rule.operands):
                admissibleRule = False
                break
-            if 'GPR8' in o and isInconsistent(b, 'VEXVALID', 0):
-               # ToDo
+            if isInconsistent(b, 'VEXVALID', vexvalid):
+               admissibleRule = False
+               break
+            if (vexvalid != 0) and isInconsistent(b, 'REX', 0):
                admissibleRule = False
                break
 
@@ -172,7 +172,7 @@ def getAllRegisterNamesForOperand(operand, agi, mask, multireg, EOSZ=None, rex=N
 
          if not admissibleRule: continue
 
-         returnList.extend(getAllRegisterNamesForOperand(rule.operands[0], agi, mask, multireg, EOSZ, rex, highLow, rmBits))
+         returnList.extend(getAllRegisterNamesForOperand(rule.operands[0], agi, mask, multireg, EOSZ, rex, highLow, rmBits, vexvalid, apx))
       return returnList
    elif operand.type == 'reg':
       o = operand.bits.upper()
@@ -328,7 +328,7 @@ def getInstrString(XMLInstr, stringSuffix):
                parList.append('ST0')
          else:
             continue
-      if opNode.attrib['type'] == 'reg':
+      if opNode.attrib.get('type') == 'reg':
          if not ',' in opNode.text:
             parList.append(opNode.text)
          else:
@@ -360,7 +360,7 @@ def getInstrString(XMLInstr, stringSuffix):
                parList.append('R8l')
             else:
                parList.append('R' + opNode.attrib.get('width', ''))
-      if opNode.attrib['type'] == 'mem':
+      if opNode.attrib.get('type') == 'mem':
          if 'VSIB' in opNode.attrib:
             parList.append('VSIB_' + opNode.attrib['VSIB'])
          elif 'moffs' in opNode.attrib:
@@ -369,13 +369,16 @@ def getInstrString(XMLInstr, stringSuffix):
             parList.append('M' + opNode.attrib['width'] + '_' + opNode.attrib['memory-suffix'].strip('{}'))
          else:
             parList.append('M' + opNode.attrib['width'])
-      if opNode.attrib['type'] == 'imm':
+      if opNode.attrib.get('type') == 'imm':
          if opNode.text:
             parList.append(opNode.text)
          else:
             parList.append('I' + opNode.attrib['width'])
-      if opNode.attrib['type'] == 'relbr':
+      if opNode.attrib.get('type') == 'relbr':
          parList.append('Rel' + opNode.attrib['width'])
+      if opNode.attrib.get('type') == 'absbr':
+         parList.append('Abs' + opNode.attrib['width'])
+
 
    parStr = ', '.join(parList)
    if parStr:
@@ -385,9 +388,9 @@ def getInstrString(XMLInstr, stringSuffix):
 
 
 def getMemoryPrefix(width, ii):
-   if ii.category in ['GATHER', 'AVX2GATHER', 'ENQCMD', 'KEYLOCKER', 'KEYLOCKER_WIDE', 'SCATTER'] or ii.iclass in ['LAR', 'LSL', 'INVPCID', 'CALL_FAR',
-         'JMP_FAR', 'RET_FAR', 'LWPVAL', 'LWPINS', 'WRSSD', 'WRSSQ', 'WRUSSD', 'WRUSSQ', 'VPOPCNTD', 'MOVDIR64B', 'MOVDIRI', 'PCMPESTRI64', 'PCMPESTRM64',
-         'VPCMPESTRI64', 'VPCMPESTRM64', 'LDTILECFG', 'STTILECFG']:
+   if ii.category in ['GATHER', 'AVX2GATHER', 'KEYLOCKER', 'KEYLOCKER_WIDE', 'SCATTER'] or ii.iclass in ['CALL_FAR', 'ENQCMD', 'ENQCMDS', 'INVPCID', 'JMP_FAR',
+         'LAR', 'LDTILECFG', 'LSL', 'LWPVAL', 'LWPINS', 'MOVDIR64B', 'MOVDIRI', 'PCMPESTRI64', 'PCMPESTRM64', 'RET_FAR', 'STTILECFG', 'VPCMPESTRI64',
+         'VPCMPESTRM64', 'VPOPCNTD', 'WRSSD', 'WRSSQ', 'WRUSSD', 'WRUSSQ']:
       return None
    elif width == '8':
       return 'byte ptr'
@@ -445,13 +448,11 @@ def generateXMLFile(agi):
                                'VMOVQ_XMMdq_MEMq_6E', 'VMOVQ_MEMq_XMMq_7E', 'VPEXTRW_GPR32d_XMMdq_IMMb_15', 'PUSH_GPRv_FFr6', 'MOV_GPR8_IMMb_C6r0',
                                'POP_GPRv_8F', 'PEXTRW_SSE4_GPR32_XMMdq_IMMb']
                                or (ii.iform_enum == 'VPEXTRW_GPR32u16_XMMu16_IMM8_AVX512' and ii.iclass == 'VPEXTRW')
-                               or (ii.iclass in 'SHL' and 'REG[0b110]' in ii.ipattern_input)):
+                               or (ii.iclass in 'SHL' and 'REG[0b110]' in ii.ipattern_input)
+                               or (ii.iclass.startswith('CTEST') and 'REG[0b001]' in ii.ipattern_input)):
             # there is no assembler code to emit these encodings
             continue
          if ii.iclass == 'SYSRET' and any(op for op in ii.operands if op.bits == 'XED_REG_EIP'):
-            continue
-         if 'APX' in ii.extension or 'APX' in ii.isa_set:
-            # ToDo
             continue
          allInstructions.append(ii)
 
@@ -468,16 +469,23 @@ def generateXMLFile(agi):
 
    XMLInstrs = {}
    for ii in sorted(allInstructions, key=str):
+      apx = 'APX' in ii.extension
+
       # EVEX encoded instructions for which an {evex} specifier is required as there is a corresponding non-EVEX
       # encoded instruction that the assembler might prefer
       requiresEvexSpecifier = (ii.is_evex() and ('ZMM' not in ii.iform_enum) and
-                               any(ii2 for ii2 in iclassDict[ii.iclass] if not ii2.is_evex())) or ii.iclass == 'VPEXTRW_C5'
+                                 any(ii2 for ii2 in iclassDict[ii.iclass] if not ii2.is_evex()) and
+                                 not any((findPossibleValuesForToken(ii.ipattern.bits, t, {}, agi) == {1}) for t in ['ND', 'NF'])
+                              ) or ii.iclass == 'VPEXTRW_C5'
 
       # VEX encoded instructions for which a {vex} specifier is required as there is a corresponding non-VEX encoded
       # instruction that the assembler might prefer
       requiresVexSpecifier = (ii.is_vex() and (ii.extension not in ['AVX', 'AVX2', 'AVX2GATHER', 'AVXAES', 'F16C', 'FMA', 'GFNI', 'MSR_IMM', 'USER_MSR',
                                                                     'VAES', 'VPCLMULQDQ']) and
                               any(ii2 for ii2 in iclassDict[ii.iclass] if not ii2.is_vex()))
+
+      vexvalidSet = findPossibleValuesForToken(ii.ipattern.bits, 'VEXVALID', {}, agi)
+      vexvalid = next(iter(vexvalidSet)) if vexvalidSet else 0
 
       modeSet = findPossibleValuesForToken(ii.ipattern.bits, 'MODE', {}, agi)
       if modeSet and not (2 in modeSet):
@@ -493,7 +501,7 @@ def generateXMLFile(agi):
       hasImm = False
       hasExplicitImm8 = False
       for operand in ii.operands:
-         if operand.type == 'nt_lookup_fn' and 'GPR8' in operand.lookupfn_name:
+         if operand.type == 'nt_lookup_fn' and 'GPR8' in operand.lookupfn_name and not ii.is_evex():
             GPR8OperandNames.append(operand.name)
             hasGPR8RmOperand = any(b.token == 'RM' for r in agi.generator_dict[operand.lookupfn_name].parser_output.instructions for b in r.ipattern.bits)
          if operand.name == 'AGEN':
@@ -506,18 +514,21 @@ def generateXMLFile(agi):
       if hasOperandSensitiveToEOSZ(ii.operands, agi, widths_list_dict) or 'REP' in ii.iclass:
          eoszSet = findPossibleValuesForToken(ii.ipattern.bits, 'EOSZ', {'MODE':[2], 'EASZ':[3]}, agi)
          if not eoszSet:
-            vexvalidSet = findPossibleValuesForToken(ii.ipattern.bits, 'VEXVALID', {'MODE':[2], 'EASZ':[3]}, agi)
             oszSet = findPossibleValuesForToken(ii.ipattern.bits, 'OSZ', {'MODE':[2], 'EASZ':[3]}, agi)
             rexw = findPossibleValuesForToken(ii.ipattern.bits, 'REXW', {'MODE':[2], 'EASZ':[3]}, agi)
+            vexPrefix = findPossibleValuesForToken(ii.ipattern.bits, 'VEX_PREFIX', {'MODE':[2], 'EASZ':[3]}, agi)
 
             if oszSet == {1}:
                eoszSet = {1}
             elif rexw == {1}:
                eoszSet = {3}
-            elif ('REP' in ii.iclass) or ('IRET' in ii.iclass):
+            elif rexw == {0} or ('REP' in ii.iclass) or ('IRET' in ii.iclass):
                eoszSet = {2}
-            elif ((len(vexvalidSet) >= 1 and not (0 in vexvalidSet)) or (0 in oszSet) or ii.extension == 'RDWRFSGS' or
-                  ii.iform_enum in ['CRC32_GPRyy_GPR8b', 'CRC32_GPRyy_MEMb', 'XSTORE']):
+            elif any((op.oc2 == 'y' or op.lookupfn_name == 'GPRy_B') for op in ii.operands) and not any((op.oc2 == 'v') for op in ii.operands):
+               eoszSet = {2,3}
+            elif vexPrefix == {1}:
+               eoszSet = {1}
+            elif vexPrefix == {0}:
                eoszSet = {2,3}
             elif ii.iform_enum in ['MOV_GPRv_IMMz']:
                # there is no assembler code to emit these encodings for smaller eosz
@@ -564,6 +575,10 @@ def generateXMLFile(agi):
                                  # not accepted by assembler (GNU and NASM)
                                  continue
                               if ii.iclass in ['MOVSX', 'MOVZX', 'CRC32'] and high8RegNames and eosz == 3:
+                                 continue
+                              if ii.iform_enum.endswith('_ZU') and (eosz in [2, 3]):
+                                 continue
+                              if ii.iform_enum.endswith('_ZU') and (ii.operands[0].name == 'MEM0'):
                                  continue
 
                               XMLInstr = Element('instruction')
@@ -624,6 +639,9 @@ def generateXMLFile(agi):
                                     ii.iform_enum in ['FLDENV_MEMmem14', 'FNSTENV_MEMmem14', 'FNSAVE_MEMmem94', 'FRSTOR_MEMmem94']):
                                  XMLInstr.attrib['asm'] += 'W'
                                  stringSuffix += '_W'
+                              if (eosz == 1) and ii.iclass in ['XSTORE']:
+                                 XMLInstr.attrib['asm'] = 'data16 ' + XMLInstr.attrib['asm']
+                                 stringSuffix += '_16'
                               if eosz == 2 and ii.iclass == 'RET_FAR':
                                   XMLInstr.attrib['asm'] += 'D'
                               if eosz == 3:
@@ -650,13 +668,25 @@ def generateXMLFile(agi):
                               if 'SRM[rrr]' in ii.ipattern_input:
                                  XMLInstr.attrib['incomplete_opcode'] = '1'
 
+                              nfSet = findPossibleValuesForToken(ii.ipattern.bits, 'NF', state_space, agi)
+                              if nfSet == {1}:
+                                 if 'APX_NF' in (ii.attributes or []):
+                                    XMLInstr.attrib['nf'] = '1'
+                                    XMLInstr.attrib['asm'] = '{NF} ' + XMLInstr.attrib['asm']
+                                    stringSuffix += '_NF'
+                                 elif any((ii.iform_enum == ii2.iform_enum) and
+                                          findPossibleValuesForToken(ii2.ipattern.bits, 'NF', state_space, agi) == {0} for ii2 in iclassDict[ii.iclass]):
+                                    # exclude cases where NF is just used to reverse operands of the same type
+                                    continue
+
                               for ii2 in iclassDict[ii.iclass]:
                                  if ii == ii2 or ii.iform_enum in ['BNDMOV_BND_BND']: continue
                                  ops = [op.lookupfn_name for op in ii.operands if 'REG' in op.name and (op.lookupfn_name or '').endswith(('_B', '_R'))]
                                  ops2 = [op.lookupfn_name for op in ii2.operands if 'REG' in op.name and (op.lookupfn_name or '').endswith(('_B', '_R'))]
+                                 opcode2 = getOpcode(ii2)
 
-                                 if len(ops) == 2 and (ops[0][:-1] == ops[1][:-1]) and ops == list(reversed(ops2)):
-                                    if opcode < getOpcode(ii2):
+                                 if opcode != opcode2 and len(ops) == 2 and (ops[0][:-1] == ops[1][:-1]) and ops == list(reversed(ops2)):
+                                    if opcode < opcode2:
                                        XMLInstr.attrib['asm'] = '{load} ' + XMLInstr.attrib['asm']
                                     else:
                                        XMLInstr.attrib['asm'] = '{store} ' + XMLInstr.attrib['asm']
@@ -687,6 +717,9 @@ def generateXMLFile(agi):
                                     XMLInstr.attrib['locked'] = '1'
                                  if 'MXCSR' in ii.attributes:
                                     XMLInstr.attrib['mxcsr'] = '1'
+
+                              if ii.iform_enum.endswith('_ZU'):
+                                 stringSuffix += '_ZU'
 
                               for operand in ii.operands:
                                  if operand.internal:
@@ -737,7 +770,8 @@ def generateXMLFile(agi):
                                        XMLOperand.attrib['r'] = '1'
                                        XMLOperand.attrib['w'] = '1'
 
-                                    register_names = getAllRegisterNamesForOperand(operand, agi, maskop, operand.multireg, eosz, rex, highLow, rmBits)
+                                    register_names = getAllRegisterNamesForOperand(operand, agi, maskop, operand.multireg, eosz, rex, highLow, rmBits,
+                                                                                   vexvalid, apx)
                                     XMLOperand.text = ','.join(register_names)
 
                                     width = None
@@ -784,6 +818,9 @@ def generateXMLFile(agi):
                                        XMLOperand.attrib['width'] = width
                                        if width == '32':
                                           XMLInstr.attrib['asm'] = '{disp32} ' + XMLInstr.attrib['asm']
+                                    elif o == 'ABSBR':
+                                       XMLOperand.attrib['type'] = 'absbr'
+                                       XMLOperand.attrib['width'] = width
                                     elif (o == 'AGEN'):
                                        XMLOperand.attrib['type'] = 'agen'
                                     elif (o == 'MEM'):
@@ -798,12 +835,13 @@ def generateXMLFile(agi):
 
                                        for operand2 in ii.operands:
                                           if (operand2.name != 'INDEX') and (operand.name[-1] != operand2.name[-1]): continue
-                                          if 'BASE' in operand2.name:
-                                             XMLOperand.attrib['base'] = getAllRegisterNamesForOperand(operand2, agi, False, 0, eosz, rex)[-1]
                                           if 'SEG' in operand2.name:
                                              XMLOperand.attrib['seg'] = operand2.lookupfn_name.split('_')[1][0:2]
-                                          if 'INDEX' in operand2.name:
-                                             XMLOperand.attrib['index'] = getAllRegisterNamesForOperand(operand2, agi, False, 0, eosz, rex)[-1]
+                                          op2RegNames = getAllRegisterNamesForOperand(operand2, agi, False, 0, 3, rex)
+                                          if ('BASE' in operand2.name) and (len(op2RegNames) == 1):
+                                             XMLOperand.attrib['base'] = op2RegNames[0]
+                                          if ('INDEX' in operand2.name) and (len(op2RegNames) == 1):
+                                             XMLOperand.attrib['index'] = op2RegNames[0]
 
                                        memoryPrefix = getMemoryPrefix(width, ii)
                                        if memoryPrefix:

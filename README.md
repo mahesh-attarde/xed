@@ -12,7 +12,7 @@ However, it should be relatively straightforward to adapt it to other assemblers
 We consider a definition of "instruction variant" that is more fine-grained than XED's iforms.
 For example, we consider versions of an instruction that use 32-bit and 64-bit general-purpose registers (i.e., that use a different effective operand size) to be different "instruction variants"; however, both versions have the same XED iform.
 
-The combination of an *XED iform* and the *agen*, *bcast*, *eosz*, *high8*, *immzero*, *mask*, *rep*, *rm*, *sae*, and *zeroing* attributes uniquely identifies an "instruction variant".
+The combination of an *XED iform* and the *agen*, *bcast*, *eosz*, *high8*, *immzero*, *mask*, *nf*, *opcode*, *rep*, *rm*, *sae*, and *zeroing* attributes uniquely identifies an "instruction variant".
 
 
 ## Generating assembler code for all instruction variants
