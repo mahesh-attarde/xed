@@ -103,14 +103,14 @@ def buildPyModule():
                 define_macros = [('PYTHON', None)],
                 sources = ['examples/xed-examples-util.c',
                            'examples/xed-nm-symtab.c',
-                           'examples/xed-disas-raw.c',
-                           'examples/xed-dot-prep.c',
+                           'examples/xed-util-disas-raw.c',
+                           'examples/xed-util-dot-prep.c',
                            'examples/xed-symbol-table.c',
-                           'examples/xed-dot.c',
+                           'examples/xed-util-dot.c',
                            'examples/avltree.c',
-                           'examples/xed-disas-elf.c',
-                           'examples/xed-disas-macho.c'] +
-                           (['examples/xed-disas-pecoff.cpp'] if system() == 'Windows' else [])
+                           'examples/xed-util-disas-elf.c',
+                           'examples/xed-util-disas-macho.c'] +
+                           (['examples/xed-util-disas-pecoff.cpp'] if system() == 'Windows' else [])
             )
         ]
     )

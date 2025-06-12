@@ -1,6 +1,6 @@
 /* BEGIN_LEGAL 
 
-Copyright (c) 2024 Intel Corporation
+Copyright (c) 2025 Intel Corporation
 
   Licensed under the Apache License, Version 2.0 (the "License");
   you may not use this file except in compliance with the License.
@@ -32,7 +32,7 @@ END_LEGAL */
 #include <ctype.h>
 #include <stdlib.h>
 #include <assert.h>
-#include "xed-dot-prep.h"
+#include "xed-util-dot-prep.h"
 
 
 #include "xed/xed-ild.h"
@@ -43,10 +43,10 @@ END_LEGAL */
 
 #ifdef PYTHON
  # include <Python.h>
- #include "xed-disas-elf.h"
- #include "xed-disas-macho.h"
- #include "xed-disas-pecoff.h"
- #include "xed-disas-raw.h"
+ #include "xed-util-disas-elf.h"
+ #include "xed-util-disas-macho.h"
+ #include "xed-util-disas-pecoff.h"
+ #include "xed-util-disas-raw.h"
 
  static void add_instr_to_pyList(xed_disas_info_t* di, xed_decoded_inst_t* xedd, xed_uint64_t runtime_instruction_address, unsigned char* z);
 #endif
