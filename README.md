@@ -1,13 +1,6 @@
 # Intel&reg; X86 Encoder Decoder  (Intel&reg; XED)
 
-## Doxygen API manual and source build manual:
-
-https://intelxed.github.io
-
-## Bugs:
-
-https://github.com/intelxed/xed/issues/new
-       
+>>>> PERSONAL changes <<<<<<       
 
 ## Abbreviated *GITHUB* building instructions:
 
