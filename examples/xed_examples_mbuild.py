@@ -399,6 +399,7 @@ def build_examples(env, work_queue):
     if env['decoder']:
        ild_examples += [ 'xed-dec-ild.c' ]
        other_c_examples += ['xed-dec.c',
+                            'xed-iforms.c',
                             'xed-dec-control.c',
                             'xed-dec-min.c',
                             'xed-rep-string.c',     
