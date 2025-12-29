@@ -2,7 +2,7 @@
 # -*- python -*-
 #BEGIN_LEGAL
 #
-#Copyright (c) 2024 Intel Corporation
+#Copyright (c) 2025 Intel Corporation
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -17,7 +17,14 @@
 #  limitations under the License.
 #  
 #END_LEGAL
+"""
+Operand information and representation.
 
+This module defines classes for representing instruction operands including
+registers, immediates, memory references, and nonterminal lookups. The
+operand_info_t class captures fields and lookup functions required for
+encoding and decoding instruction operands.
+"""
 import re
 from typing import Optional
 
@@ -68,7 +75,7 @@ class operand_info_t(object):
             genutil.die("Unexpected type when building operand: %s" %
                         (str(self.type)))
 
-        # constant or varible bits, Register names. could be empty for
+        # constant or variable bits, Register names. could be empty for
         # lookup functions that do not take arguments.
         self.bits: str = bits
 
@@ -185,6 +192,16 @@ class operand_info_t(object):
 
     def set_suppressed(self):
         self.visibility = 'SUPPRESSED'
+        
+    def to_serializable(self) -> dict:
+        ''' Returns a serializable dict representation '''
+        result = dict()
+        keys_filter: set = {'width_info_dict', 'internal', 'invert', 'inline',
+                            'rightmost_bitpos', 'bit_positions'}
+        keys = set(self.__dict__.keys()) - keys_filter
+        for key in sorted(keys):
+            result[key] = getattr(self, key)
+        return result
 
     def dump_str(self, pad: str = '') -> str:
         s = []
